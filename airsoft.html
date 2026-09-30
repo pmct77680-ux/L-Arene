@@ -1,573 +1,311 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>River Surf - Pingouin Multijoueur</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#1a1d33">
+<title>Arène</title>
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
-body, html { width: 100%; height: 100%; overflow: hidden; background: #0b1d3a; font-family: 'Segoe UI', sans-serif; }
-
-#canvas-container { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
-
-/* MENU LOBBY */
-#lobby-menu {
-position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-background: rgba(11, 29, 58, 0.95); z-index: 100;
-display: flex; flex-direction: column; justify-content: center; align-items: center;
-color: white; text-align: center; padding: 20px;
-}
-
-.card {
-background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px);
-border: 2px solid rgba(255, 255, 255, 0.2); border-radius: 20px;
-padding: 30px; max-width: 450px; width: 100%; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-}
-
-h1 { font-size: 2.2rem; color: #00d2ff; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 2px; }
-p { color: #cfd8dc; margin-bottom: 20px; font-size: 0.95rem; }
-
-.input-group { margin-bottom: 15px; text-align: left; }
-.input-group label { display: block; font-size: 0.85rem; color: #80d8ff; margin-bottom: 5px; font-weight: bold; }
-.input-group input {
-width: 100%; padding: 12px 15px; border-radius: 10px; border: none;
-background: rgba(255, 255, 255, 0.2); color: white; font-size: 1rem; outline: none;
-box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
-}
-.input-group input::placeholder { color: #b0bec5; }
-
-.btn {
-width: 100%; padding: 14px; border: none; border-radius: 10px; font-weight: bold;
-font-size: 1rem; cursor: pointer; transition: all 0.2s ease;
-text-transform: uppercase; letter-spacing: 1px;
-background: #00d2ff; color: #0b1d3a; box-shadow: 0 4px 15px rgba(0,210,255,0.4);
-margin-top: 10px;
-}
-.btn:hover { background: #80d8ff; transform: translateY(-2px); }
-
-/* HUD EN JEU */
-#hud {
-position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-pointer-events: none; z-index: 10; display: none;
-}
-
-.top-bar {
-position: absolute; top: 20px; left: 20px; right: 20px;
-display: flex; justify-content: space-between; align-items: flex-start;
-}
-
-.stats-card {
-background: rgba(11, 29, 58, 0.7); backdrop-filter: blur(8px);
-padding: 12px 20px; border-radius: 15px; border: 1px solid rgba(0,210,255,0.3);
-color: white; font-family: monospace;
-}
-.stats-card div { font-size: 1.2rem; font-weight: bold; }
-.stats-card label { font-size: 0.75rem; color: #00d2ff; text-transform: uppercase; }
-
-#leaderboard {
-background: rgba(11, 29, 58, 0.85); backdrop-filter: blur(10px);
-border-radius: 15px; border: 1px solid rgba(255,255,255,0.2);
-padding: 15px; width: 220px; color: white;
-}
-#leaderboard h3 { font-size: 0.9rem; color: #ffca28; margin-bottom: 10px; text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; }
-.player-row { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 6px; font-family: monospace; }
-.player-row.me { color: #00d2ff; font-weight: bold; }
-
-/* ANNONCE DE DIFFICULTÉ */
-#difficulty-alert {
-position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%) scale(0.5);
-background: rgba(255, 87, 34, 0.9); color: white; padding: 15px 30px;
-border-radius: 15px; font-size: 1.8rem; font-weight: bold; text-transform: uppercase;
-box-shadow: 0 0 30px rgba(255, 87, 34, 0.8); opacity: 0; pointer-events: none;
-transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-text-shadow: 0 2px 4px rgba(0,0,0,0.5); border: 2px solid #ffe0b2; text-align: center;
-}
-#difficulty-alert.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-
-/* GAME OVER */
-#game-over {
-position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-background: rgba(0,0,0,0.85); z-index: 50; display: none;
-flex-direction: column; justify-content: center; align-items: center; color: white;
-}
-#game-over h2 { font-size: 3rem; color: #ff5252; margin-bottom: 10px; }
-#game-over p { font-size: 1.2rem; margin-bottom: 25px; }
-
-/* CONTROLES MOBILE */
-#mobile-controls {
-position: absolute; bottom: 20px; left: 0; width: 100%;
-display: flex; justify-content: space-between; padding: 0 20px;
-pointer-events: auto; display: none;
-}
-.touch-btn {
-width: 70px; height: 70px; background: rgba(255,255,255,0.2);
-border: 2px solid rgba(255,255,255,0.4); border-radius: 50%;
-display: flex; justify-content: center; align-items: center;
-color: white; font-size: 1.5rem; font-weight: bold; backdrop-filter: blur(5px);
-}
-.touch-btn:active { background: rgba(0,210,255,0.5); }
+:root{--nuit:#1a1d33;--carte:#262a4a;--texte:#f2f0ff;--gris:#9a9cc4;--on:#ffc247;--off:#4a4e78}
+*{box-sizing:border-box}
+body{margin:0;background:var(--nuit);color:var(--texte);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden}
+main{max-width:460px;margin:0 auto;padding:24px 20px}
+h1{font-size:28px;margin:0 0 4px}
+p{color:var(--gris);margin:0 0 20px;line-height:1.4}
+a{color:var(--on)}
+input{width:100%;padding:14px;border-radius:12px;border:2px solid var(--off);background:var(--carte);color:var(--texte);font-size:17px;margin-bottom:12px}
+input:focus{outline:none;border-color:var(--on)}
+button{font:inherit;cursor:pointer;border:0;border-radius:14px;padding:14px 18px;font-weight:700;font-size:17px;color:var(--nuit);background:var(--on);width:100%}
+button.gris{background:var(--carte);color:var(--texte)}
+.msg{color:var(--on);min-height:22px;margin:10px 0}
+.ou{text-align:center;color:var(--gris);margin:16px 0}
+canvas{position:fixed;inset:0;width:100%;height:100%;touch-action:none;display:block}
+.cache{display:none}
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
+<div id="menu"><main>
+  <h1>Arène</h1>
+  <p>Tire sur les autres, esquive et grimpe au classement. 20 joueurs maximum.</p>
+  <p>Ordi : ZQSD ou WASD pour bouger, souris pour viser et cliquer pour tirer. Téléphone : stick gauche pour bouger, stick droit pour viser et tirer.</p>
+  <input id="pseudo" placeholder="Ton pseudo" maxlength="15" autocomplete="off">
+  <button id="creer">Créer une partie</button>
+  <div class="ou">ou</div>
+  <input id="code" placeholder="Code de la partie" maxlength="6" autocomplete="off">
+  <button id="rejoindre" class="gris">Rejoindre</button>
+  <div class="msg" id="msg"></div>
+</main></div>
+<canvas id="c" class="cache"></canvas>
 
-<div id="canvas-container"></div>
-
-<!-- MENU SALON MULTIJOUEUR -->
-<div id="lobby-menu">
-<div class="card">
-<h1>River Surf 🐧</h1>
-<p>Esquive les obstacles, affronte tes amis et surfe le plus loin possible !</p>
-
-<div class="input-group">
-<label>TON PSEUDO</label>
-<input type="text" id="player-name" placeholder="Ex: Joueur1" maxlength="12">
-</div>
-
-<div class="input-group">
-<label>CODE DU SALON (4 LETTRES)</label>
-<input type="text" id="room-code" placeholder="Ex: LOB1" maxlength="4" style="text-transform: uppercase;">
-</div>
-
-<button class="btn" id="btn-play">REJOINDRE & JOUER</button>
-</div>
-</div>
-
-<!-- HUD EN JEU -->
-<div id="hud">
-<div class="top-bar">
-<div class="stats-card">
-<label>DISTANCE</label>
-<div id="distance-val">0 m</div>
-<label style="margin-top: 5px; display:block;">NIVEAU (Chaque 100m)</label>
-<div id="level-val" style="color:#00d2ff;">1 (Normal)</div>
-</div>
-
-<div id="leaderboard">
-<h3>🏆 SALON : <span id="room-display">----</span></h3>
-<div id="leaderboard-list">
-<!-- Injecté dynamiquement -->
-</div>
-</div>
-</div>
-
-<div id="difficulty-alert">
-DIFFICULTÉ NIVEAU <span id="alert-lvl">2</span> !<br>
-<span style="font-size: 1rem; font-weight: normal;">Vitesse accrue & obstacles resserrés !</span>
-</div>
-
-<div id="mobile-controls">
-<div style="display:flex; gap:10px;">
-<div class="touch-btn" id="btn-left">◄</div>
-<div class="touch-btn" id="btn-right">►</div>
-</div>
-<div class="touch-btn" id="btn-jump" style="width: 80px; border-radius: 20px; background: rgba(0,210,255,0.4);">SAUT</div>
-</div>
-</div>
-
-<!-- GAME OVER -->
-<div id="game-over">
-<h2>CRASH !</h2>
-<p>Distance parcourue : <span id="final-distance" style="color:#00d2ff; font-weight:bold;">0 m</span></p>
-<button class="btn" id="btn-restart" style="width: 200px;">REESSAYER</button>
-</div>
-
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
-let scene, camera, renderer;
-let penguinGroup, surfboard;
-let isPlaying = false;
-let distance = 0;
-let speed = 0.45;
-let currentLane = 0; // -1: Gauche, 0: Milieu, 1: Droite
-const laneWidth = 3.5;
-let targetX = 0;
+const $ = id => document.getElementById(id);
+const W = 1200, H = 1200, R = 16, MAXJ = 20, PREF = 'squadarene-';
+const cv = $('c'), x = cv.getContext('2d');
+let peer, hote = null, estHote = false, code = '', myId = '', nom = '', dpr = 1, n = 0;
+let conns = {}, P = {}, B = [], noms = {}, disp = {}, snap = { b: [], t: 0 };
+let kx = 0, ky = 0, mx = 0, my = 0, mf = 0, tactile = false;
+const keys = {}, st = { l: null, r: null };
 
-// Physique Saut
-let isJumping = false;
-let jumpVelocity = 0;
-const gravity = -0.018;
+try { nom = JSON.parse(localStorage.getItem('sg') || '{}').nom || ''; } catch (e) {}
+$('pseudo').value = nom;
+const msg = t => { $('msg').textContent = t || ''; };
 
-// Difficulté
-let currentLevel = 1;
-let lastLevelDistance = 0;
-
-// Multijoueur via BroadcastChannel (Sync entre plusieurs onglets)
-let playerName = "Joueur";
-let roomCode = "LOB1";
-let networkChannel = null;
-let roomPlayers = {};
-
-// Collections Décor / Obstacles
-let riverMesh;
-let obstacles = [];
-let scenery = [];
-
-function init() {
-scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0b1d3a);
-scene.fog = new THREE.FogExp2(0x0b1d3a, 0.015);
-
-camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(0, 4, 9);
-camera.rotation.x = -0.2;
-
-renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.shadowMap.enabled = true;
-document.getElementById('canvas-container').appendChild(renderer.domElement);
-
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
-scene.add(ambientLight);
-
-const dirLight = new THREE.DirectionalLight(0xfffaed, 0.8);
-dirLight.position.set(20, 40, 20);
-dirLight.castShadow = true;
-scene.add(dirLight);
-
-createRiverWorld();
-createPenguinPlayer();
-
-window.addEventListener('resize', onWindowResize);
-setupControls();
-
-animate();
+function pseudo() {
+  nom = $('pseudo').value.trim().slice(0, 15);
+  if (!nom) { msg('Écris ton pseudo.'); return false; }
+  try { localStorage.setItem('sg', JSON.stringify({ nom })); } catch (e) {}
+  return true;
 }
 
-// --- MONDE & DÉCOR ---
-function createRiverWorld() {
-const riverGeo = new THREE.PlaneGeometry(14, 200, 32, 64);
-const riverMat = new THREE.MeshStandardMaterial({ color: 0x0077be, roughness: 0.1, metalness: 0.8 });
-riverMesh = new THREE.Mesh(riverGeo, riverMat);
-riverMesh.rotation.x = -Math.PI / 2;
-riverMesh.position.z = -80;
-scene.add(riverMesh);
-
-const bankGeo = new THREE.BoxGeometry(20, 2, 200);
-const bankMat = new THREE.MeshStandardMaterial({ color: 0x2e7d32, roughness: 0.9 });
-
-const leftBank = new THREE.Mesh(bankGeo, bankMat);
-leftBank.position.set(-17, -0.5, -80);
-scene.add(leftBank);
-
-const rightBank = new THREE.Mesh(bankGeo, bankMat);
-rightBank.position.set(17, -0.5, -80);
-scene.add(rightBank);
-
-for (let i = 0; i < 40; i++) {
-createTree(-12 - Math.random() * 8, -i * 5);
-createTree(12 + Math.random() * 8, -i * 5);
+/* ---------- Commandes ---------- */
+function touche(e, v) {
+  keys[e.key.toLowerCase()] = v;
+  kx = (keys.d || keys.arrowright ? 1 : 0) - (keys.a || keys.q || keys.arrowleft ? 1 : 0);
+  ky = (keys.s || keys.arrowdown ? 1 : 0) - (keys.w || keys.z || keys.arrowup ? 1 : 0);
 }
-}
-
-function createTree(x, z) {
-const tree = new THREE.Group();
-const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.5, 3), new THREE.MeshStandardMaterial({ color: 0x4e342e }));
-trunk.position.y = 1.5;
-const leaves = new THREE.Mesh(new THREE.ConeGeometry(2, 5, 6), new THREE.MeshStandardMaterial({ color: 0x1b5e20 }));
-leaves.position.y = 4;
-tree.add(trunk); tree.add(leaves);
-tree.position.set(x, 0, z);
-scene.add(tree);
-scenery.push(tree);
-}
-
-// --- PINGOUIN SURFEUR ---
-function createPenguinPlayer() {
-penguinGroup = new THREE.Group();
-
-const boardGeo = new THREE.BoxGeometry(1.2, 0.15, 2.6);
-const boardMat = new THREE.MeshStandardMaterial({ color: 0xff6f00, roughness: 0.3 });
-surfboard = new THREE.Mesh(boardGeo, boardMat);
-surfboard.position.y = 0.1;
-penguinGroup.add(surfboard);
-
-const bodyGeo = new THREE.SphereGeometry(0.7, 16, 16);
-bodyGeo.scale(1, 1.4, 0.9);
-const body = new THREE.Mesh(bodyGeo, new THREE.MeshStandardMaterial({ color: 0x212121 }));
-body.position.y = 1.1;
-penguinGroup.add(body);
-
-const bellyGeo = new THREE.SphereGeometry(0.55, 16, 16);
-bellyGeo.scale(0.8, 1.2, 0.5);
-const belly = new THREE.Mesh(bellyGeo, new THREE.MeshStandardMaterial({ color: 0xffffff }));
-belly.position.set(0, 1.05, 0.35);
-penguinGroup.add(belly);
-
-const beakGeo = new THREE.ConeGeometry(0.2, 0.5, 8);
-const beak = new THREE.Mesh(beakGeo, new THREE.MeshStandardMaterial({ color: 0xffab00 }));
-beak.rotation.x = Math.PI / 2;
-beak.position.set(0, 1.3, 0.7);
-penguinGroup.add(beak);
-
-penguinGroup.position.set(0, 0, 0);
-scene.add(penguinGroup);
-}
-
-// --- OBSTACLES & TREMPLINS ---
-function spawnObstacle() {
-const lane = Math.floor(Math.random() * 3) - 1;
-const x = lane * laneWidth;
-const z = -120;
-
-const type = Math.random();
-let obstacle;
-
-if (type < 0.45) {
-obstacle = new THREE.Mesh(
-new THREE.DodecahedronGeometry(1.1),
-new THREE.MeshStandardMaterial({ color: 0x616161, roughness: 0.8 })
-);
-obstacle.position.set(x, 0.5, z);
-obstacle.userData = { type: 'rock', radius: 1.0 };
-} else if (type < 0.75) {
-obstacle = new THREE.Mesh(
-new THREE.CylinderGeometry(0.5, 0.5, 3),
-new THREE.MeshStandardMaterial({ color: 0x3e2723 })
-);
-obstacle.rotation.z = Math.PI / 2;
-obstacle.position.set(x, 0.3, z);
-obstacle.userData = { type: 'log', radius: 1.2 };
-} else {
-obstacle = new THREE.Mesh(
-new THREE.BoxGeometry(2.2, 0.6, 3),
-new THREE.MeshStandardMaterial({ color: 0xd84315 })
-);
-obstacle.rotation.x = -0.2;
-obstacle.position.set(x, 0.1, z);
-obstacle.userData = { type: 'ramp', radius: 1.2 };
-}
-
-scene.add(obstacle);
-obstacles.push(obstacle);
-}
-
-// --- RENDER & LOGIQUE DU JEU ---
-function animate() {
-requestAnimationFrame(animate);
-
-if (isPlaying) {
-distance += speed;
-document.getElementById('distance-val').innerText = Math.floor(distance) + " m";
-
-// DURCISSEMENT TOUS LES 100 METRES
-checkDifficultyProgression();
-
-// Animation vagues
-const pos = riverMesh.geometry.attributes.position;
-for (let i = 0; i < pos.count; i++) {
-const u = pos.getX(i);
-const v = pos.getY(i);
-pos.setZ(i, Math.sin(u * 0.5 + distance * 0.1) * 0.15 + Math.cos(v * 0.3 + distance * 0.1) * 0.15);
-}
-riverMesh.geometry.attributes.position.needsUpdate = true;
-
-// Déplacement fluide
-penguinGroup.position.x += (targetX - penguinGroup.position.x) * 0.18;
-surfboard.rotation.z = -(targetX - penguinGroup.position.x) * 0.2;
-
-// Saut
-if (isJumping) {
-penguinGroup.position.y += jumpVelocity;
-jumpVelocity += gravity;
-
-if (penguinGroup.position.y <= 0) {
-penguinGroup.position.y = 0;
-isJumping = false;
-}
-}
-
-// Spawn des obstacles basé sur la difficulté
-const spawnChance = 0.03 + (currentLevel * 0.008);
-if (Math.random() < spawnChance) {
-if (obstacles.length === 0 || obstacles[obstacles.length - 1].position.z > -100) {
-spawnObstacle();
-}
-}
-
-// Collisions
-for (let i = obstacles.length - 1; i >= 0; i--) {
-const obs = obstacles[i];
-obs.position.z += speed;
-
-const distXZ = Math.hypot(obs.position.x - penguinGroup.position.x, obs.position.z - penguinGroup.position.z);
-
-if (distXZ < obs.userData.radius && penguinGroup.position.y < 0.8) {
-if (obs.userData.type === 'ramp') {
-isJumping = true;
-jumpVelocity = 0.45;
-} else {
-gameOver();
-}
-}
-
-if (obs.position.z > 10) {
-scene.remove(obs);
-obstacles.splice(i, 1);
-}
-}
-
-// Décor
-scenery.forEach(tree => {
-tree.position.z += speed;
-if (tree.position.z > 10) tree.position.z = -180;
-});
-
-// Envoi de notre position aux autres amis dans la session
-broadcastPosition();
-updateLeaderboardDisplay();
-}
-
-renderer.render(scene, camera);
-}
-
-// --- DIFFICULTÉ TOUS LES 100 METRES ---
-function checkDifficultyProgression() {
-if (distance - lastLevelDistance >= 100) {
-lastLevelDistance = distance;
-currentLevel++;
-speed += 0.06; // Accélération constante
-
-document.getElementById('level-val').innerText = `${currentLevel} (Vitesse +)`;
-document.getElementById('alert-lvl').innerText = currentLevel;
-
-const alertEl = document.getElementById('difficulty-alert');
-alertEl.classList.add('show');
-setTimeout(() => alertEl.classList.remove('show'), 2000);
-
-scene.fog.density += 0.002;
-}
-}
-
-// --- RESEAU / SYNCHRO MULTIJOUEUR ---
-function setupMultiplayerNetwork() {
-playerName = document.getElementById('player-name').value.trim() || "Surfeur" + Math.floor(Math.random()*100);
-roomCode = document.getElementById('room-code').value.trim().toUpperCase() || "LOB1";
-document.getElementById('room-display').innerText = roomCode;
-
-// Canal local pour connecter les sessions d'amis
-networkChannel = new BroadcastChannel('river_surf_' + roomCode);
-
-networkChannel.onmessage = (e) => {
-const data = e.data;
-if (data.type === 'sync') {
-roomPlayers[data.id] = { name: data.name, dist: data.dist, lastUpdate: Date.now() };
-}
+addEventListener('keydown', e => touche(e, true));
+addEventListener('keyup', e => touche(e, false));
+addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
+cv.addEventListener('mousedown', () => { mf = 1; });
+addEventListener('mouseup', () => { mf = 0; });
+cv.addEventListener('contextmenu', e => e.preventDefault());
+cv.addEventListener('touchstart', e => {
+  e.preventDefault(); tactile = true;
+  for (const t of e.changedTouches) {
+    const s = t.clientX < innerWidth / 2 ? 'l' : 'r';
+    if (!st[s]) st[s] = { id: t.identifier, ox: t.clientX, oy: t.clientY, x: t.clientX, y: t.clientY };
+  }
+}, { passive: false });
+cv.addEventListener('touchmove', e => {
+  e.preventDefault();
+  for (const t of e.changedTouches) for (const s in st)
+    if (st[s] && st[s].id === t.identifier) { st[s].x = t.clientX; st[s].y = t.clientY; }
+}, { passive: false });
+const finTouch = e => {
+  for (const t of e.changedTouches) for (const s in st)
+    if (st[s] && st[s].id === t.identifier) st[s] = null;
 };
+cv.addEventListener('touchend', finTouch);
+cv.addEventListener('touchcancel', finTouch);
 
-roomPlayers[playerName] = { name: playerName, dist: 0, isMe: true };
+function lireInput() {
+  let dx = kx, dy = ky, ax = mx - innerWidth / 2, ay = my - innerHeight / 2, f = mf;
+  if (tactile) { ax = 0; ay = 0; f = 0; }
+  if (st.l) { dx = (st.l.x - st.l.ox) / 50; dy = (st.l.y - st.l.oy) / 50; }
+  if (st.r) { ax = st.r.x - st.r.ox; ay = st.r.y - st.r.oy; f = Math.hypot(ax, ay) > 12 ? 1 : 0; }
+  const l = Math.hypot(dx, dy);
+  if (l > 1) { dx /= l; dy /= l; }
+  return { dx, dy, ax, ay, f };
 }
 
-function broadcastPosition() {
-if (!networkChannel) return;
-networkChannel.postMessage({
-type: 'sync',
-id: playerName,
-name: playerName,
-dist: Math.floor(distance)
-});
-roomPlayers[playerName].dist = Math.floor(distance);
+/* ---------- Serveur (le créateur de la partie) ---------- */
+function nouveau(id, nomJ) {
+  const p = { id, nom: nomJ || 'Joueur', x: 0, y: 0, a: 0, hp: 100, k: 0, d: 0, mort: 0, cd: 0, in: { dx: 0, dy: 0, ax: 0, ay: 0, f: 0 } };
+  renaitre(p);
+  return p;
+}
+function renaitre(p) {
+  p.x = 100 + Math.random() * (W - 200);
+  p.y = 100 + Math.random() * (H - 200);
+  p.hp = 100; p.mort = 0;
+}
+function diffNoms() {
+  noms = {};
+  for (const id in P) noms[id] = P[id].nom;
+  for (const id in conns) if (conns[id].open) conns[id].send({ t: 'n', n: noms });
 }
 
-function updateLeaderboardDisplay() {
-const listContainer = document.getElementById('leaderboard-list');
-listContainer.innerHTML = '';
-
-const now = Date.now();
-const playersArray = Object.keys(roomPlayers)
-.filter(id => now - (roomPlayers[id].lastUpdate || now) < 5000 || roomPlayers[id].isMe)
-.map(id => roomPlayers[id]);
-
-playersArray.sort((a, b) => b.dist - a.dist);
-
-playersArray.forEach((p, index) => {
-const row = document.createElement('div');
-row.className = `player-row ${p.isMe ? 'me' : ''}`;
-row.innerHTML = `<span>${index + 1}. ${p.name}</span><span>${Math.floor(p.dist)}m</span>`;
-listContainer.appendChild(row);
-});
+function tick() {
+  const dt = 0.033;
+  if (P.hote) P.hote.in = lireInput();
+  for (const id in P) {
+    const p = P[id];
+    if (p.mort > 0) { p.mort -= dt; if (p.mort <= 0) renaitre(p); continue; }
+    const i = p.in;
+    p.x = Math.max(R, Math.min(W - R, p.x + i.dx * 220 * dt));
+    p.y = Math.max(R, Math.min(H - R, p.y + i.dy * 220 * dt));
+    if (i.ax || i.ay) p.a = Math.atan2(i.ay, i.ax);
+    p.cd -= dt;
+    if (i.f && p.cd <= 0) {
+      p.cd = 0.25;
+      const co = Math.cos(p.a), si = Math.sin(p.a);
+      B.push({ x: p.x + co * R, y: p.y + si * R, vx: co * 650, vy: si * 650, a: p.a, o: id, t: 1 });
+    }
+  }
+  for (let i = B.length - 1; i >= 0; i--) {
+    const b = B[i];
+    b.x += b.vx * dt; b.y += b.vy * dt; b.t -= dt;
+    let fin = b.t <= 0 || b.x < 0 || b.x > W || b.y < 0 || b.y > H;
+    if (!fin) for (const id in P) {
+      const p = P[id];
+      if (id === b.o || p.mort > 0) continue;
+      if (Math.hypot(p.x - b.x, p.y - b.y) < R + 4) {
+        p.hp -= 25; fin = true;
+        if (p.hp <= 0) { p.mort = 2; p.d++; if (P[b.o]) P[b.o].k++; }
+        break;
+      }
+    }
+    if (fin) B.splice(i, 1);
+  }
+  if (++n % 2 === 0) {
+    const s = {
+      t: 's',
+      p: Object.values(P).map(p => [p.id, Math.round(p.x), Math.round(p.y), Math.round(p.a * 100) / 100, p.hp, p.k, p.d, p.mort > 0 ? 1 : 0]),
+      b: B.map(b => [Math.round(b.x), Math.round(b.y), Math.round(b.a * 100) / 100])
+    };
+    for (const id in conns) if (conns[id].open) conns[id].send(s);
+    recevoir(s);
+  }
 }
 
-// --- CONTROLES JOUEUR ---
-function setupControls() {
-window.addEventListener('keydown', (e) => {
-if (!isPlaying) return;
-
-if ((e.key === 'ArrowLeft' || e.key === 'q' || e.key === 'Q') && currentLane > -1) {
-currentLane--;
-targetX = currentLane * laneWidth;
-}
-if ((e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') && currentLane < 1) {
-currentLane++;
-targetX = currentLane * laneWidth;
-}
-if ((e.key === ' ' || e.key === 'ArrowUp') && !isJumping) {
-isJumping = true;
-jumpVelocity = 0.32;
-}
-});
-
-document.getElementById('btn-left').addEventListener('touchstart', (e) => {
-e.preventDefault();
-if (currentLane > -1) { currentLane--; targetX = currentLane * laneWidth; }
-});
-
-document.getElementById('btn-right').addEventListener('touchstart', (e) => {
-e.preventDefault();
-if (currentLane < 1) { currentLane++; targetX = currentLane * laneWidth; }
-});
-
-document.getElementById('btn-jump').addEventListener('touchstart', (e) => {
-e.preventDefault();
-if (!isJumping) { isJumping = true; jumpVelocity = 0.32; }
-});
-
-if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-document.getElementById('mobile-controls').style.display = 'flex';
+function creer() {
+  if (!pseudo()) return;
+  const al = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  code = Array.from({ length: 6 }, () => al[Math.floor(Math.random() * al.length)]).join('');
+  msg('Création...');
+  peer = new Peer(PREF + code);
+  peer.on('open', () => {
+    estHote = true; myId = 'hote';
+    P.hote = nouveau('hote', nom);
+    diffNoms(); lancer(); setInterval(tick, 33);
+  });
+  peer.on('error', e => {
+    if (e.type === 'unavailable-id') { peer.destroy(); creer(); }
+    else msg('Problème de connexion. Réessaie.');
+  });
+  peer.on('connection', c => {
+    c.on('open', () => {
+      if (Object.keys(P).length >= MAXJ) { c.send({ t: 'plein' }); setTimeout(() => c.close(), 500); return; }
+      conns[c.peer] = c;
+    });
+    c.on('data', d => {
+      if (!conns[c.peer]) return;
+      if (d.t === 'j' && !P[c.peer]) { P[c.peer] = nouveau(c.peer, String(d.nom || 'Joueur').slice(0, 15)); diffNoms(); }
+      else if (d.t === 'i' && P[c.peer]) {
+        const v = q => Math.max(-1, Math.min(1, +q || 0));
+        P[c.peer].in = { dx: v(d.dx), dy: v(d.dy), ax: +d.ax || 0, ay: +d.ay || 0, f: d.f ? 1 : 0 };
+      }
+    });
+    c.on('close', () => { delete P[c.peer]; delete conns[c.peer]; diffNoms(); });
+  });
 }
 
-document.getElementById('btn-play').addEventListener('click', startGame);
-document.getElementById('btn-restart').addEventListener('click', restartGame);
+/* ---------- Joueur qui rejoint ---------- */
+function rejoindre() {
+  if (!pseudo()) return;
+  code = $('code').value.trim().toUpperCase();
+  if (code.length !== 6) { msg('Le code fait 6 caractères.'); return; }
+  msg('Connexion...');
+  peer = new Peer();
+  peer.on('open', id => {
+    myId = id;
+    hote = peer.connect(PREF + code, { reliable: true });
+    const delai = setTimeout(() => { peer.destroy(); msg('Partie introuvable. Le créateur doit garder la page ouverte.'); }, 8000);
+    hote.on('open', () => {
+      clearTimeout(delai);
+      hote.send({ t: 'j', nom });
+      lancer();
+      setInterval(() => { if (hote.open) hote.send({ t: 'i', ...lireInput() }); }, 50);
+    });
+    hote.on('data', d => {
+      if (d.t === 's') recevoir(d);
+      else if (d.t === 'n') noms = d.n;
+      else if (d.t === 'plein') { alert('Partie pleine (20 joueurs maximum).'); location.reload(); }
+    });
+    hote.on('close', () => { alert('La partie est terminée.'); location.reload(); });
+  });
+  peer.on('error', () => msg('Problème de connexion. Réessaie.'));
 }
 
-function startGame() {
-setupMultiplayerNetwork();
-document.getElementById('lobby-menu').style.display = 'none';
-document.getElementById('hud').style.display = 'block';
-isPlaying = true;
+/* ---------- Affichage ---------- */
+function recevoir(s) {
+  snap = { b: s.b, t: performance.now() };
+  const nd = {};
+  for (const a of s.p) {
+    const o = disp[a[0]];
+    nd[a[0]] = { x: o && !o.dead ? o.x : a[1], y: o && !o.dead ? o.y : a[2], tx: a[1], ty: a[2], a: a[3], hp: a[4], k: a[5], d: a[6], dead: a[7] };
+  }
+  disp = nd;
 }
 
-function gameOver() {
-isPlaying = false;
-document.getElementById('final-distance').innerText = Math.floor(distance) + " m";
-document.getElementById('game-over').style.display = 'flex';
+function couleur(id) {
+  if (id === myId) return '#ffc247';
+  let h = 0;
+  for (const ch of id) h += ch.charCodeAt(0);
+  return 'hsl(' + (h * 37 % 360) + ' 70% 62%)';
 }
 
-function restartGame() {
-distance = 0;
-speed = 0.45;
-currentLevel = 1;
-lastLevelDistance = 0;
-currentLane = 0;
-targetX = 0;
-penguinGroup.position.set(0, 0, 0);
+function resize() {
+  dpr = Math.min(devicePixelRatio || 1, 2);
+  cv.width = innerWidth * dpr; cv.height = innerHeight * dpr;
+}
+addEventListener('resize', resize);
 
-obstacles.forEach(obs => scene.remove(obs));
-obstacles = [];
-
-document.getElementById('game-over').style.display = 'none';
-document.getElementById('level-val').innerText = "1 (Normal)";
-scene.fog.density = 0.015;
-
-isPlaying = true;
+function lancer() {
+  $('menu').classList.add('cache');
+  cv.classList.remove('cache');
+  resize(); dessiner();
 }
 
-function onWindowResize() {
-camera.aspect = window.innerWidth / window.innerHeight;
-camera.updateProjectionMatrix();
-renderer.setSize(window.innerWidth, window.innerHeight);
+function dessiner() {
+  requestAnimationFrame(dessiner);
+  const w = innerWidth, h = innerHeight;
+  x.setTransform(dpr, 0, 0, dpr, 0, 0);
+  x.fillStyle = '#12142a'; x.fillRect(0, 0, w, h);
+  for (const id in disp) { const d = disp[id]; d.x += (d.tx - d.x) * 0.35; d.y += (d.ty - d.y) * 0.35; }
+  const me = disp[myId], cx = me ? me.x : W / 2, cy = me ? me.y : H / 2;
+
+  x.save();
+  x.translate(w / 2 - cx, h / 2 - cy);
+  x.fillStyle = '#20244a'; x.fillRect(0, 0, W, H);
+  x.strokeStyle = '#2d3261'; x.lineWidth = 1; x.beginPath();
+  for (let i = 0; i <= W; i += 100) { x.moveTo(i, 0); x.lineTo(i, H); x.moveTo(0, i); x.lineTo(W, i); }
+  x.stroke();
+  x.strokeStyle = '#ffc247'; x.lineWidth = 4; x.strokeRect(0, 0, W, H);
+
+  const dt = (performance.now() - snap.t) / 1000;
+  x.fillStyle = '#fff';
+  for (const b of snap.b) {
+    x.beginPath();
+    x.arc(b[0] + Math.cos(b[2]) * 650 * dt, b[1] + Math.sin(b[2]) * 650 * dt, 4, 0, 7);
+    x.fill();
+  }
+  x.textAlign = 'center'; x.font = '13px system-ui';
+  for (const id in disp) {
+    const d = disp[id];
+    if (d.dead) continue;
+    x.strokeStyle = couleur(id); x.lineWidth = 5; x.beginPath();
+    x.moveTo(d.x, d.y); x.lineTo(d.x + Math.cos(d.a) * (R + 9), d.y + Math.sin(d.a) * (R + 9)); x.stroke();
+    x.fillStyle = couleur(id); x.beginPath(); x.arc(d.x, d.y, R, 0, 7); x.fill();
+    x.fillStyle = '#12142a'; x.fillRect(d.x - 18, d.y - R - 14, 36, 5);
+    x.fillStyle = '#7CE0A8'; x.fillRect(d.x - 18, d.y - R - 14, 36 * Math.max(0, d.hp) / 100, 5);
+    x.fillStyle = '#f2f0ff'; x.fillText(noms[id] || '', d.x, d.y - R - 20);
+  }
+  x.restore();
+
+  x.textAlign = 'left'; x.fillStyle = '#f2f0ff'; x.font = 'bold 15px system-ui';
+  x.fillText('Code : ' + code + ' (' + Object.keys(disp).length + ' joueurs)', 12, 24);
+  x.textAlign = 'right';
+  x.fillText('Classement', w - 12, 24);
+  x.font = '14px system-ui';
+  Object.entries(disp).sort((a, b) => b[1].k - a[1].k).slice(0, 5)
+    .forEach(([id, d], i) => x.fillText((noms[id] || '?') + '  ' + d.k + ' / ' + d.d, w - 12, 46 + i * 20));
+  if (me && me.dead) {
+    x.textAlign = 'center'; x.font = 'bold 22px system-ui';
+    x.fillText('Éliminé, retour dans 2 secondes', w / 2, h / 2);
+  }
+  for (const s of ['l', 'r']) if (st[s]) {
+    const t = st[s], dx = t.x - t.ox, dy = t.y - t.oy, l = Math.hypot(dx, dy), m = l > 50 ? 50 / l : 1;
+    x.strokeStyle = 'rgba(242,240,255,.5)'; x.lineWidth = 3;
+    x.beginPath(); x.arc(t.ox, t.oy, 50, 0, 7); x.stroke();
+    x.fillStyle = 'rgba(255,194,71,.7)';
+    x.beginPath(); x.arc(t.ox + dx * m, t.oy + dy * m, 22, 0, 7); x.fill();
+  }
 }
 
-window.onload = init;
+$('creer').onclick = creer;
+$('rejoindre').onclick = rejoindre;
 </script>
 </body>
 </html>
