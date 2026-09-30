@@ -3,60 +3,68 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Airsoft Bodycam 3D - Multijoueur (10 Joueurs)</title>
+  <title>Airsoft Bodycam - PvP 5v5 Forêt</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
-    body, html { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body, html { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
     #canvas-container { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
     
-    /* Overlay Bodycam Fish-eye/Vignette */
+    /* Overlay Fisheye Bodycam & Vignette */
     #bodycam-overlay {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%;
       pointer-events: none; z-index: 10;
-      box-shadow: inset 0 0 100px rgba(0,0,0,0.85);
-      background: radial-gradient(circle, transparent 60%, rgba(0,0,0,0.4) 100%);
+      box-shadow: inset 0 0 120px rgba(0,0,0,0.85);
+      background: radial-gradient(circle, transparent 55%, rgba(0,0,0,0.5) 100%);
     }
 
     .cam-rec {
       position: absolute; top: 20px; right: 25px; color: #ff3333;
-      font-family: monospace; font-weight: bold; font-size: 18px;
+      font-family: monospace; font-weight: bold; font-size: 16px;
       display: flex; align-items: center; gap: 8px;
-      text-shadow: 0 0 8px rgba(255, 0, 0, 0.7);
+      text-shadow: 0 0 8px rgba(255, 0, 0, 0.8);
     }
     .rec-dot { width: 12px; height: 12px; background: #ff3333; border-radius: 50%; animation: blink 1s infinite; }
     @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.1; } }
 
     .cam-info {
       position: absolute; top: 20px; left: 25px; color: #00ff66;
-      font-family: monospace; font-size: 14px; text-shadow: 0 0 5px rgba(0,255,102,0.5);
+      font-family: monospace; font-size: 13px; text-shadow: 0 0 5px rgba(0,255,102,0.5);
+      line-height: 1.4;
     }
 
-    /* Viseur Sniper / ADS Overlay */
+    /* Scoreboard 5v5 */
+    #scoreboard {
+      position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 15px; z-index: 15; font-family: monospace; font-weight: bold; font-size: 16px;
+    }
+    .team-score { padding: 8px 18px; border-radius: 20px; background: rgba(0,0,0,0.75); border: 2px solid; backdrop-filter: blur(4px); }
+    .team-blue { color: #33aaff; border-color: #33aaff; box-shadow: 0 0 10px rgba(51,170,255,0.3); }
+    .team-red { color: #ff4444; border-color: #ff4444; box-shadow: 0 0 10px rgba(255,68,68,0.3); }
+
+    /* Crosshair & Lunette Sniper */
     #scope-overlay {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%;
       pointer-events: none; display: none; z-index: 12;
-      background: radial-gradient(circle at center, transparent 32%, black 35%);
+      background: radial-gradient(circle at center, transparent 30%, black 33%);
     }
     #scope-crosshair {
       position: absolute; top: 50%; left: 50%; width: 100%; height: 100%;
       transform: translate(-50%, -50%); pointer-events: none;
     }
 
-    /* Crosshair standard */
     #crosshair {
-      position: absolute; top: 50%; left: 50%; width: 10px; height: 10px;
+      position: absolute; top: 50%; left: 50%; width: 8px; height: 8px;
       transform: translate(-50%, -50%); pointer-events: none; z-index: 11;
-      border: 2px solid rgba(255, 255, 255, 0.8); border-radius: 50%;
-      background: rgba(255, 0, 0, 0.6);
-      transition: opacity 0.1s;
+      border: 2px solid rgba(255, 255, 255, 0.9); border-radius: 50%;
+      background: rgba(255, 0, 0, 0.7);
     }
 
-    /* Barre de santé */
+    /* Health Bar Local Player */
     #health-bar-container {
       position: absolute; bottom: 25px; left: 50%; transform: translateX(-50%);
-      width: 320px; height: 24px; background: rgba(0,0,0,0.7);
-      border: 2px solid rgba(255,255,255,0.3); border-radius: 12px;
-      padding: 3px; z-index: 15; backdrop-filter: blur(5px);
+      width: 300px; height: 22px; background: rgba(0,0,0,0.8);
+      border: 2px solid rgba(255,255,255,0.4); border-radius: 12px;
+      padding: 2px; z-index: 15; backdrop-filter: blur(6px);
     }
     #health-bar-fill {
       width: 100%; height: 100%; background: linear-gradient(90deg, #ff3333, #00ff66);
@@ -64,41 +72,48 @@
     }
     #health-text {
       position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      color: #fff; font-size: 12px; font-weight: bold; font-family: monospace;
+      color: #fff; font-size: 11px; font-weight: bold; font-family: monospace;
       text-shadow: 1px 1px 2px #000;
     }
 
-    /* Modale Menu / Accueil */
-    #instructions {
-      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.85); color: white; display: flex;
-      flex-direction: column; justify-content: center; align-items: center;
-      z-index: 30; text-align: center; padding: 20px;
-    }
-    #instructions h1 { font-size: 2.8rem; margin-bottom: 10px; text-transform: uppercase; color: #ffcc00; letter-spacing: 2px; }
-    #instructions p { font-size: 1rem; margin-bottom: 20px; max-width: 550px; color: #ccc; line-height: 1.5; }
-    .btn {
-      padding: 14px 32px; font-size: 18px; font-weight: bold; color: #000;
-      background: #00ff66; border: none; border-radius: 30px; cursor: pointer;
-      box-shadow: 0 0 15px rgba(0,255,102,0.4); transition: transform 0.2s, background 0.2s;
-    }
-    .btn:hover { transform: scale(1.05); background: #33ff88; }
-
-    /* Flash dégâts */
+    /* Flash Dégâts & Notification Kill */
     #damage-flash {
       position: absolute; top:0; left:0; width:100%; height:100%;
-      background: rgba(255,0,0,0.4); pointer-events:none; opacity:0;
+      background: rgba(255,0,0,0.35); pointer-events:none; opacity:0;
       transition: opacity 0.1s ease-out; z-index: 20;
     }
 
-    /* Contrôles tactiles mobiles */
+    #kill-feed {
+      position: absolute; top: 80px; right: 25px;
+      display: flex; flex-direction: column; gap: 5px;
+      z-index: 15; font-family: monospace; font-size: 13px; text-align: right;
+    }
+    .kill-item { background: rgba(0,0,0,0.6); padding: 4px 10px; border-radius: 4px; color: #fff; border-right: 3px solid #ffcc00; }
+
+    /* Menu / Start Modal */
+    #instructions {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(10,15,10,0.9); color: white; display: flex;
+      flex-direction: column; justify-content: center; align-items: center;
+      z-index: 30; text-align: center; padding: 20px;
+    }
+    #instructions h1 { font-size: 2.5rem; margin-bottom: 12px; text-transform: uppercase; color: #00ff66; letter-spacing: 2px; text-shadow: 0 0 10px rgba(0,255,102,0.4); }
+    #instructions p { font-size: 1rem; margin-bottom: 24px; max-width: 600px; color: #ddd; line-height: 1.6; }
+    .btn {
+      padding: 16px 36px; font-size: 18px; font-weight: bold; color: #000;
+      background: #00ff66; border: none; border-radius: 30px; cursor: pointer;
+      box-shadow: 0 0 20px rgba(0,255,102,0.5); transition: all 0.2s ease;
+    }
+    .btn:hover { transform: scale(1.05); background: #33ff88; }
+
+    /* Touch Controls Mobile */
     #touch-controls {
       position: absolute; top:0; left:0; width:100%; height:100%;
       pointer-events: none; z-index: 25; display: none;
     }
     #joystick-zone {
       position: absolute; bottom: 30px; left: 30px; width: 120px; height: 120px;
-      background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3);
+      background: rgba(255,255,255,0.12); border: 2px solid rgba(255,255,255,0.3);
       border-radius: 50%; pointer-events: auto; touch-action: none;
     }
     #joystick-knob {
@@ -106,23 +121,21 @@
       background: rgba(255,255,255,0.5); border-radius: 50%; pointer-events: none;
     }
     #shoot-btn {
-      position: absolute; bottom: 40px; right: 30px; width: 80px; height: 80px;
+      position: absolute; bottom: 40px; right: 30px; width: 75px; height: 75px;
       background: rgba(255, 50, 50, 0.6); border: 2px solid #ff5555;
-      border-radius: 50%; color: white; font-weight: bold; font-size: 16px;
-      display: flex; justify-content: center; align-items: center; pointer-events: auto;
-      touch-action: manipulation;
-    }
-    #aim-btn {
-      position: absolute; bottom: 130px; right: 30px; width: 65px; height: 65px;
-      background: rgba(50, 150, 255, 0.6); border: 2px solid #55aaff;
       border-radius: 50%; color: white; font-weight: bold; font-size: 14px;
       display: flex; justify-content: center; align-items: center; pointer-events: auto;
       touch-action: manipulation;
     }
+    #aim-btn {
+      position: absolute; bottom: 125px; right: 30px; width: 60px; height: 60px;
+      background: rgba(50, 150, 255, 0.6); border: 2px solid #55aaff;
+      border-radius: 50%; color: white; font-weight: bold; font-size: 13px;
+      display: flex; justify-content: center; align-items: center; pointer-events: auto;
+      touch-action: manipulation;
+    }
   </style>
-  <!-- Chargement des bibliothèques 3D et Réseau -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 </head>
 <body>
 
@@ -130,8 +143,15 @@
 
   <div id="bodycam-overlay">
     <div class="cam-rec"><div class="rec-dot"></div>REC</div>
-    <div class="cam-info">BODYCAM_01 // MULTIJOUEUR<br><span id="player-count">Joueurs: 1/10</span></div>
+    <div class="cam-info">BODYCAM_SYS_v2.4<br>MODE: AIRSOFT PVP 5v5 FORÊT</div>
   </div>
+
+  <div id="scoreboard">
+    <div class="team-score team-blue" id="score-blue">BLEUS : 5 VIVANTS</div>
+    <div class="team-score team-red" id="score-red">ROUGES : 5 VIVANTS</div>
+  </div>
+
+  <div id="kill-feed"></div>
 
   <div id="scope-overlay">
     <svg id="scope-crosshair" viewBox="0 0 100 100">
@@ -152,13 +172,14 @@
   <div id="damage-flash"></div>
 
   <div id="instructions">
-    <h1>L'Arène Airsoft 3D</h1>
+    <h1>Airsoft Bodycam PvP 5v5</h1>
     <p>
-      • <strong>PC :</strong> ZQSD / WASD pour vous déplacer, Clic Gauche pour tirer, Clic Droit pour viser (ADS).<br>
-      • <strong>Mobile :</strong> Utiliser le Joystick virtuel à gauche et les boutons Tirer / Viser à droite.<br>
-      • <strong>Objectif :</strong> Survivez aux loups féroces et combattez les autres joueurs !
+      • <strong>Mode 5v5 :</strong> Équipe Bleue (votre équipe) contre Équipe Rouge.<br>
+      • <strong>Loups Sauvages :</strong> Des loups patrouillent. Ils attaquent frénétiquement si vous approchez à <strong>moins de 2 mètres</strong> !<br>
+      • <strong>Terrain Forêt :</strong> Utilisez les arbres, rochers et piles de bois pour vous abriter.<br>
+      • <strong>Contrôles PC :</strong> ZQSD / WASD pour bouger, Souris pour viser, Clic Gauche = Tirer, Clic Droit = Visée Lunette (ADS).
     </p>
-    <button class="btn" id="start-btn">REJOINDRE LA PARTIE</button>
+    <button class="btn" id="start-btn">ENTRER DANS L'ARÈNE</button>
   </div>
 
   <div id="touch-controls">
@@ -168,58 +189,44 @@
   </div>
 
   <script>
-    let socket = null;
     let scene, camera, renderer;
-    let localPlayerId = null;
-    let remotePlayers = {};
-
-    // Données joueur
-    const player = {
+    let player = {
+      team: 'blue',
       height: 1.7,
-      speed: 0.12,
+      speed: 0.13,
       health: 5,
       maxHealth: 5,
-      position: new THREE.Vector3(0, 1.7, 0),
+      position: new THREE.Vector3(0, 1.7, 48),
       isAiming: false,
       dead: false
     };
 
-    // Points d'apparition aux 4 coins
-    const SPAWN_POINTS = [
-      new THREE.Vector3(-40, 1.7, -40),
-      new THREE.Vector3(40, 1.7, -40),
-      new THREE.Vector3(-40, 1.7, 40),
-      new THREE.Vector3(40, 1.7, 40)
-    ];
-
+    let bots = [];
     let wolves = [];
     let bullets = [];
     let pitch = 0, yaw = 0;
     const keys = {};
     let isMobile = false;
 
-    // Tactile
-    let joystickTouchId = null, lookTouchId = null;
+    // Directives Touch Mobile
+    let joystickTouchId = null;
     let joystickOrigin = { x: 0, y: 0 };
     let joystickMove = { x: 0, y: 0 };
-    let lastLookPos = { x: 0, y: 0 };
     let walkCycle = 0;
 
+    // Effets Audio WebAudio API
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    
     function playShootSound() {
       if (audioCtx.state === 'suspended') audioCtx.resume();
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
       osc.type = 'triangle';
-      osc.frequency.setValueAtTime(300, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.08);
-      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.08);
+      osc.frequency.setValueAtTime(320, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.09);
+      gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.09);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(); osc.stop(audioCtx.currentTime + 0.09);
     }
 
     function playHitSound() {
@@ -227,94 +234,21 @@
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
       osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(150, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.15);
-      gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+      osc.frequency.setValueAtTime(120, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(20, audioCtx.currentTime + 0.15);
+      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.15);
-    }
-
-    function initNetwork() {
-      // Connexion serveur Socket.io (fallback auto si local)
-      try {
-        if (typeof io !== 'undefined') {
-          socket = io();
-
-          socket.on('init', (data) => {
-            localPlayerId = data.id;
-            Object.keys(data.players).forEach(id => {
-              if (id !== localPlayerId) addRemotePlayer(data.players[id]);
-            });
-            updatePlayerCount();
-          });
-
-          socket.on('player_joined', (pData) => {
-            addRemotePlayer(pData);
-            updatePlayerCount();
-          });
-
-          socket.on('player_moved', (pData) => {
-            if (remotePlayers[pData.id]) {
-              remotePlayers[pData.id].position.set(pData.x, pData.y, pData.z);
-              remotePlayers[pData.id].rotation.y = pData.yaw;
-            }
-          });
-
-          socket.on('player_shot', (data) => {
-            spawnRemoteBullet(data.origin, data.dir);
-          });
-
-          socket.on('player_left', (id) => {
-            if (remotePlayers[id]) {
-              scene.remove(remotePlayers[id]);
-              delete remotePlayers[id];
-              updatePlayerCount();
-            }
-          });
-        }
-      } catch (e) {
-        console.log("Mode Solo (Serveur non détecté)");
-      }
-    }
-
-    function updatePlayerCount() {
-      const count = Object.keys(remotePlayers).length + 1;
-      document.getElementById('player-count').innerText = `Joueurs: ${count}/10`;
-    }
-
-    function addRemotePlayer(pData) {
-      const pGroup = new THREE.Group();
-      
-      const bodyGeo = new THREE.CylinderGeometry(0.3, 0.3, 1.6);
-      const bodyMat = new THREE.MeshStandardMaterial({ color: 0x3366cc });
-      const body = new THREE.Mesh(bodyGeo, bodyMat);
-      body.position.y = 0.8;
-      pGroup.add(body);
-
-      const headGeo = new THREE.SphereGeometry(0.25);
-      headGeo.scale(1, 1.2, 1);
-      const headMat = new THREE.MeshStandardMaterial({ color: 0xffcc99 });
-      const head = new THREE.Mesh(headGeo, headMat);
-      head.position.y = 1.7;
-      pGroup.add(head);
-
-      pGroup.position.set(pData.x, pData.y, pData.z);
-      scene.add(pGroup);
-      remotePlayers[pData.id] = pGroup;
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(); osc.stop(audioCtx.currentTime + 0.15);
     }
 
     function init() {
       isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
-      if (isMobile) {
-        document.getElementById('touch-controls').style.display = 'block';
-      }
+      if (isMobile) document.getElementById('touch-controls').style.display = 'block';
 
       scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x87ceeb);
-      scene.fog = new THREE.FogExp2(0x87ceeb, 0.015);
+      scene.background = new THREE.Color(0x405538);
+      scene.fog = new THREE.FogExp2(0x405538, 0.014);
 
       camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
       
@@ -323,172 +257,226 @@
       renderer.shadowMap.enabled = true;
       document.getElementById('canvas-container').appendChild(renderer.domElement);
 
-      const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
       scene.add(ambientLight);
 
-      const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-      dirLight.position.set(50, 80, 30);
+      const dirLight = new THREE.DirectionalLight(0xffeedd, 0.85);
+      dirLight.position.set(40, 80, 20);
       dirLight.castShadow = true;
       scene.add(dirLight);
 
-      // Génération de l'environnement
-      createTerrain();
-      createBuilding();
-      createTrees();
-      createObstacles();
+      createForestTerrain();
+      createCovers();
       createGun();
 
-      // Population de 10 loups
-      for (let i = 0; i < 10; i++) spawnWolf();
-
-      respawnPlayer();
+      spawnTeams();
+      for (let i = 0; i < 8; i++) spawnWolf();
 
       window.addEventListener('resize', onWindowResize);
       setupControls();
 
-      initNetwork();
       animate();
     }
 
-    function createTerrain() {
-      const floorGeo = new THREE.PlaneGeometry(120, 120);
-      const floorMat = new THREE.MeshStandardMaterial({ color: 0x3a5f0b, roughness: 0.9 });
+    function createForestTerrain() {
+      const floorGeo = new THREE.PlaneGeometry(130, 130);
+      const floorMat = new THREE.MeshStandardMaterial({ color: 0x223819, roughness: 0.95 });
       const floor = new THREE.Mesh(floorGeo, floorMat);
       floor.rotation.x = -Math.PI / 2;
       floor.receiveShadow = true;
       scene.add(floor);
+
+      // Limites du terrain
+      const wallMat = new THREE.MeshStandardMaterial({ color: 0x112211, transparent: true, opacity: 0.3 });
+      const w1 = new THREE.Mesh(new THREE.BoxGeometry(130, 4, 1), wallMat); w1.position.set(0, 2, -65); scene.add(w1);
+      const w2 = new THREE.Mesh(new THREE.BoxGeometry(130, 4, 1), wallMat); w2.position.set(0, 2, 65); scene.add(w2);
+      const w3 = new THREE.Mesh(new THREE.BoxGeometry(1, 4, 130), wallMat); w3.position.set(-65, 2, 0); scene.add(w3);
+      const w4 = new THREE.Mesh(new THREE.BoxGeometry(1, 4, 130), wallMat); w4.position.set(65, 2, 0); scene.add(w4);
     }
 
-    function createBuilding() {
-      const bGroup = new THREE.Group();
-      bGroup.position.set(0, 0, -10);
-      const wallMat = new THREE.MeshStandardMaterial({ color: 0x777777 });
-      const floorMat = new THREE.MeshStandardMaterial({ color: 0x554433 });
+    function createCovers() {
+      const trunkMat = new THREE.MeshStandardMaterial({ color: 0x3d2817 });
+      const foliageMat = new THREE.MeshStandardMaterial({ color: 0x1e421a });
+      const rockMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.8 });
+      const woodMat = new THREE.MeshStandardMaterial({ color: 0x6e4723 });
 
-      // RDC & Étage
-      const f1 = new THREE.Mesh(new THREE.BoxGeometry(16, 0.2, 10), floorMat);
-      f1.position.y = 0.1;
-      bGroup.add(f1);
-
-      const f2 = new THREE.Mesh(new THREE.BoxGeometry(16, 0.3, 10), floorMat);
-      f2.position.set(0, 3.5, -3);
-      bGroup.add(f2);
-
-      // Rampe d'accès douce
-      const ramp = new THREE.Mesh(new THREE.BoxGeometry(4, 0.2, 9.5), floorMat);
-      ramp.position.set(5, 1.75, 2.5);
-      ramp.rotation.x = 0.38; // Inclinaison douce pour monter
-      bGroup.add(ramp);
-
-      // Murs avec fenêtres
-      const w1 = new THREE.Mesh(new THREE.BoxGeometry(0.4, 3.5, 10), wallMat);
-      w1.position.set(-8, 1.75, 0);
-      bGroup.add(w1);
-
-      scene.add(bGroup);
-    }
-
-    function createTrees() {
-      const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5a3d28 });
-      const foliageMat = new THREE.MeshStandardMaterial({ color: 0x1e4d2b });
-
-      for (let i = 0; i < 35; i++) {
-        const x = (Math.random() - 0.5) * 105;
-        const z = (Math.random() - 0.5) * 105;
-        if (Math.abs(x) < 12 && Math.abs(z + 10) < 12) continue;
+      // Arbres denses
+      for (let i = 0; i < 80; i++) {
+        const x = (Math.random() - 0.5) * 110;
+        const z = (Math.random() - 0.5) * 110;
 
         const tree = new THREE.Group();
-        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 3.5), trunkMat);
-        trunk.position.y = 1.75;
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.45, 4), trunkMat);
+        trunk.position.y = 2;
         tree.add(trunk);
 
-        const foliage = new THREE.Mesh(new THREE.ConeGeometry(2.5, 5, 6), foliageMat);
-        foliage.position.y = 4.5;
+        const foliage = new THREE.Mesh(new THREE.ConeGeometry(2.6, 5.5, 7), foliageMat);
+        foliage.position.y = 4.8;
         tree.add(foliage);
 
         tree.position.set(x, 0, z);
         scene.add(tree);
       }
-    }
 
-    function createObstacles() {
-      const crateMat = new THREE.MeshStandardMaterial({ color: 0x3d5229 });
-      for (let i = 0; i < 15; i++) {
-        const crate = new THREE.Mesh(new THREE.BoxGeometry(2, 1.5, 1), crateMat);
-        crate.position.set((Math.random() - 0.5) * 90, 0.75, (Math.random() - 0.5) * 90);
+      // Rochers
+      for (let i = 0; i < 24; i++) {
+        const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(1.2 + Math.random() * 0.8), rockMat);
+        rock.position.set((Math.random() - 0.5) * 100, 0.8, (Math.random() - 0.5) * 100);
+        scene.add(rock);
+      }
+
+      // Barricades en bois
+      for (let i = 0; i < 18; i++) {
+        const crate = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.3, 1.1), woodMat);
+        crate.position.set((Math.random() - 0.5) * 95, 0.65, (Math.random() - 0.5) * 95);
         scene.add(crate);
       }
     }
 
+    function create3DHealthBar(entity) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 128; canvas.height = 16;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ff0000'; ctx.fillRect(0, 0, 128, 16);
+      ctx.fillStyle = '#00ff00'; ctx.fillRect(0, 0, 128, 16);
+
+      const texture = new THREE.CanvasTexture(canvas);
+      const spriteMat = new THREE.SpriteMaterial({ map: texture });
+      const sprite = new THREE.Sprite(spriteMat);
+      sprite.scale.set(1.4, 0.18, 1);
+      sprite.position.y = 2.1;
+
+      entity.mesh.add(sprite);
+      entity.healthSprite = sprite;
+      entity.healthCanvas = canvas;
+      entity.healthTexture = texture;
+    }
+
+    function update3DHealthBar(entity) {
+      if (!entity.healthCanvas) return;
+      const ctx = entity.healthCanvas.getContext('2d');
+      const pct = Math.max(0, entity.health / entity.maxHealth);
+      ctx.fillStyle = '#ff0000'; ctx.fillRect(0, 0, 128, 16);
+      ctx.fillStyle = '#00ff00'; ctx.fillRect(0, 0, 128 * pct, 16);
+      entity.healthTexture.needsUpdate = true;
+    }
+
+    function spawnTeams() {
+      // 4 Alliés Bleus
+      for (let i = 0; i < 4; i++) {
+        createBot('blue', new THREE.Vector3(-18 + i * 12, 0, 45));
+      }
+      // 5 Ennemis Rouges
+      for (let i = 0; i < 5; i++) {
+        createBot('red', new THREE.Vector3(-24 + i * 12, 0, -45));
+      }
+      updateScoreboard();
+    }
+
+    function createBot(team, pos) {
+      const group = new THREE.Group();
+      const color = (team === 'blue') ? 0x33aaff : 0xff3333;
+      const mat = new THREE.MeshStandardMaterial({ color });
+
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 1.5), mat);
+      body.position.y = 0.75;
+      group.add(body);
+
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.24), new THREE.MeshStandardMaterial({ color: 0xffcc99 }));
+      head.position.y = 1.6;
+      group.add(head);
+
+      group.position.copy(pos);
+      scene.add(group);
+
+      const botObj = {
+        mesh: group,
+        team: team,
+        health: 5,
+        maxHealth: 5,
+        lastShoot: 0,
+        targetPos: pos.clone()
+      };
+
+      bots.push(botObj);
+      create3DHealthBar(botObj);
+    }
+
     function spawnWolf() {
       const wolfGroup = new THREE.Group();
-      const wolfMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
-      const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 1.3), wolfMat);
+      const wolfMat = new THREE.MeshStandardMaterial({ color: 0x2d2d2d, roughness: 0.8 });
+      const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.65, 1.3), wolfMat);
       body.position.y = 0.5;
       wolfGroup.add(body);
 
-      const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.5), wolfMat);
+      const head = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.45, 0.5), wolfMat);
       head.position.set(0, 0.8, -0.6);
       wolfGroup.add(head);
 
-      wolfGroup.position.set((Math.random() - 0.5) * 90, 0, (Math.random() - 0.5) * 90);
+      const eyeL = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.08), eyeMat);
+      eyeL.position.set(0.14, 0.9, -0.85);
+      const eyeR = eyeL.clone(); eyeR.position.x = -0.14;
+      wolfGroup.add(eyeL); wolfGroup.add(eyeR);
+
+      const x = (Math.random() - 0.5) * 90;
+      const z = (Math.random() - 0.5) * 90;
+      wolfGroup.position.set(x, 0, z);
+
       scene.add(wolfGroup);
 
-      wolves.push({
+      const wolfObj = {
         mesh: wolfGroup,
         health: 3,
-        speed: 0.06,
-        state: 'PATROL',
-        targetPos: wolfGroup.position.clone()
-      });
+        maxHealth: 3,
+        speed: 0.08,
+        lastAttack: 0,
+        targetPos: new THREE.Vector3(x, 0, z)
+      };
+
+      wolves.push(wolfObj);
+      create3DHealthBar(wolfObj);
     }
 
     let gunGroup;
     function createGun() {
       gunGroup = new THREE.Group();
-      const bodyMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
-      const body = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.1, 0.6), bodyMat);
+      const bodyMat = new THREE.MeshStandardMaterial({ color: 0x151515 });
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.1, 0.65), bodyMat);
       gunGroup.add(body);
 
-      const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.4), bodyMat);
-      barrel.rotation.x = Math.PI / 2;
-      barrel.position.set(0, 0.02, -0.4);
-      gunGroup.add(barrel);
+      const scopeTube = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.32), bodyMat);
+      scopeTube.rotation.x = Math.PI / 2;
+      scopeTube.position.set(0, 0.09, -0.1);
+      gunGroup.add(scopeTube);
 
-      gunGroup.position.set(0.25, -0.25, -0.45);
+      gunGroup.position.set(0.25, -0.25, -0.5);
       camera.add(gunGroup);
       scene.add(camera);
     }
 
-    function respawnPlayer() {
-      const p = SPAWN_POINTS[Math.floor(Math.random() * SPAWN_POINTS.length)];
-      player.position.copy(p);
-      player.health = player.maxHealth;
-      player.dead = false;
-      updateHealthUI();
-    }
-
-    function takeDamage(amt) {
-      if (player.dead) return;
-      player.health -= amt;
-      playHitSound();
-
-      const flash = document.getElementById('damage-flash');
-      flash.style.opacity = '1';
-      setTimeout(() => flash.style.opacity = '0', 150);
-
-      if (player.health <= 0) {
-        player.dead = true;
-        player.health = 0;
-        setTimeout(() => respawnPlayer(), 2000);
-      }
-      updateHealthUI();
+    function addKillLog(msg) {
+      const feed = document.getElementById('kill-feed');
+      const item = document.createElement('div');
+      item.className = 'kill-item';
+      item.innerText = msg;
+      feed.appendChild(item);
+      setTimeout(() => item.remove(), 4000);
     }
 
     function updateHealthUI() {
       const pct = Math.max(0, (player.health / player.maxHealth) * 100);
       document.getElementById('health-bar-fill').style.width = pct + '%';
       document.getElementById('health-text').innerText = `SANTÉ : ${pct}% (${player.health}/${player.maxHealth})`;
+    }
+
+    function updateScoreboard() {
+      const blueAlive = (player.dead ? 0 : 1) + bots.filter(b => b.team === 'blue' && b.health > 0).length;
+      const redAlive = bots.filter(b => b.team === 'red' && b.health > 0).length;
+
+      document.getElementById('score-blue').innerText = `BLEUS : ${blueAlive} VIVANTS`;
+      document.getElementById('score-red').innerText = `ROUGES : ${redAlive} VIVANTS`;
     }
 
     function updatePlayer() {
@@ -508,11 +496,9 @@
       const len = Math.hypot(moveX, moveZ);
       if (len > 0) {
         moveX /= len; moveZ /= len;
-        const curSpeed = player.isAiming ? player.speed * 0.4 : player.speed;
         const sin = Math.sin(yaw), cos = Math.cos(yaw);
-
-        player.position.x += (moveX * cos - moveZ * sin) * curSpeed;
-        player.position.z += (moveX * sin + moveZ * cos) * curSpeed;
+        player.position.x += (moveX * cos - moveZ * sin) * player.speed;
+        player.position.z += (moveX * sin + moveZ * cos) * player.speed;
 
         walkCycle += 0.15;
         camera.position.y = player.position.y + Math.sin(walkCycle) * 0.04;
@@ -523,34 +509,111 @@
       camera.position.x = player.position.x;
       camera.position.z = player.position.z;
 
-      // Emission position multijoueur
-      if (socket && socket.connected) {
-        socket.emit('player_move', {
-          x: player.position.x,
-          y: player.position.y,
-          z: player.position.z,
-          yaw: yaw
-        });
-      }
+      const targetFov = player.isAiming ? 28 : 75;
+      camera.fov += (targetFov - camera.fov) * 0.2;
+      camera.updateProjectionMatrix();
+
+      const targetGunPos = player.isAiming ? new THREE.Vector3(0, -0.09, -0.3) : new THREE.Vector3(0.25, -0.25, -0.5);
+      gunGroup.position.lerp(targetGunPos, 0.2);
+
+      document.getElementById('scope-overlay').style.display = player.isAiming ? 'block' : 'none';
+      document.getElementById('crosshair').style.display = player.isAiming ? 'none' : 'block';
     }
 
-    function toggleAim(enable) {
-      player.isAiming = enable;
-      const scopeOverlay = document.getElementById('scope-overlay');
-      const crosshair = document.getElementById('crosshair');
+    function updateAI() {
+      const now = Date.now();
 
-      if (player.isAiming) {
-        camera.fov = 30;
-        scopeOverlay.style.display = 'block';
-        crosshair.style.opacity = '0';
-        gunGroup.position.set(0, -0.15, -0.3);
-      } else {
-        camera.fov = 75;
-        scopeOverlay.style.display = 'none';
-        crosshair.style.opacity = '1';
-        gunGroup.position.set(0.25, -0.25, -0.45);
-      }
-      camera.updateProjectionMatrix();
+      // 1. Loups Agressifs à moins de 2 METRES EXACTEMENT
+      wolves.forEach(wolf => {
+        if (wolf.health <= 0) return;
+
+        let targetPos = null;
+        let targetIsPlayer = false;
+        let minDist = 2.0; // Distance déclencheur 2 METRES
+
+        // Vérification présence joueur
+        if (!player.dead) {
+          const d = wolf.mesh.position.distanceTo(player.position);
+          if (d <= minDist) { minDist = d; targetPos = player.position; targetIsPlayer = true; }
+        }
+
+        // Vérification bots
+        bots.forEach(bot => {
+          if (bot.health > 0) {
+            const d = wolf.mesh.position.distanceTo(bot.mesh.position);
+            if (d <= minDist) { minDist = d; targetPos = bot.mesh.position; targetIsPlayer = false; }
+          }
+        });
+
+        if (targetPos) {
+          // Attaque !
+          const dir = new THREE.Vector3().subVectors(targetPos, wolf.mesh.position);
+          dir.y = 0; dir.normalize();
+          wolf.mesh.position.addScaledVector(dir, wolf.speed);
+          wolf.mesh.lookAt(targetPos.x, wolf.mesh.position.y, targetPos.z);
+
+          if (minDist < 1.3 && now - wolf.lastAttack > 900) {
+            if (targetIsPlayer) {
+              player.health -= 1;
+              playHitSound();
+              updateHealthUI();
+              const flash = document.getElementById('damage-flash');
+              flash.style.opacity = '1'; setTimeout(() => flash.style.opacity = '0', 150);
+
+              if (player.health <= 0) {
+                player.dead = true;
+                updateScoreboard();
+                addKillLog("Vous avez été dévoré par un loup !");
+              }
+            }
+            wolf.lastAttack = now;
+          }
+        } else {
+          // Patrouille calme
+          if (Math.random() < 0.01) {
+            wolf.targetPos.set((Math.random() - 0.5) * 90, 0, (Math.random() - 0.5) * 90);
+          }
+          const dir = new THREE.Vector3().subVectors(wolf.targetPos, wolf.mesh.position);
+          dir.y = 0;
+          if (dir.length() > 0.5) {
+            dir.normalize();
+            wolf.mesh.position.addScaledVector(dir, wolf.speed * 0.35);
+            wolf.mesh.lookAt(wolf.targetPos.x, wolf.mesh.position.y, wolf.targetPos.z);
+          }
+        }
+      });
+
+      // 2. Bots PvP 5v5
+      bots.forEach(bot => {
+        if (bot.health <= 0) return;
+
+        let target = null;
+        if (bot.team === 'red' && !player.dead) target = player.position;
+
+        bots.forEach(other => {
+          if (other.team !== bot.team && other.health > 0) {
+            if (!target || bot.mesh.position.distanceTo(other.mesh.position) < bot.mesh.position.distanceTo(target)) {
+              target = other.mesh.position;
+            }
+          }
+        });
+
+        if (target) {
+          bot.mesh.lookAt(target.x, bot.mesh.position.y, target.z);
+          const dist = bot.mesh.position.distanceTo(target);
+
+          if (dist > 8) {
+            const dir = new THREE.Vector3().subVectors(target, bot.mesh.position).normalize();
+            bot.mesh.position.addScaledVector(dir, 0.045);
+          }
+
+          if (now - bot.lastShoot > 1600) {
+            bot.lastShoot = now;
+            const dir = new THREE.Vector3().subVectors(target, bot.mesh.position).normalize();
+            spawnBullet(bot.mesh.position.clone().add(new THREE.Vector3(0, 1.4, 0)), dir, bot.team);
+          }
+        }
+      });
     }
 
     function shoot() {
@@ -559,46 +622,68 @@
 
       const dir = new THREE.Vector3();
       camera.getWorldDirection(dir);
-
-      if (socket && socket.connected) {
-        socket.emit('player_shoot', {
-          origin: { x: camera.position.x, y: camera.position.y, z: camera.position.z },
-          dir: { x: dir.x, y: dir.y, z: dir.z }
-        });
-      }
-
-      spawnRemoteBullet(camera.position, dir);
+      const origin = camera.position.clone().addScaledVector(dir, 0.4);
+      spawnBullet(origin, dir, 'blue');
     }
 
-    function spawnRemoteBullet(origin, dir) {
-      const bulletGeo = new THREE.SphereGeometry(0.05, 8, 8);
-      const bulletMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+    function spawnBullet(origin, dir, team) {
+      const bulletGeo = new THREE.SphereGeometry(0.04, 8, 8);
+      const bulletMat = new THREE.MeshBasicMaterial({ color: team === 'blue' ? 0x00ffff : 0xff3300 });
       const bullet = new THREE.Mesh(bulletGeo, bulletMat);
-      bullet.position.set(origin.x, origin.y, origin.z);
+      bullet.position.copy(origin);
       scene.add(bullet);
 
-      bullets.push({ mesh: bullet, dir: new THREE.Vector3(dir.x, dir.y, dir.z), life: 50 });
+      bullets.push({ mesh: bullet, dir: dir, team: team, life: 60 });
     }
 
     function updateBullets() {
       for (let i = bullets.length - 1; i >= 0; i--) {
         const b = bullets[i];
-        b.mesh.position.addScaledVector(b.dir, 1.2);
+        b.mesh.position.addScaledVector(b.dir, 1.15);
         b.life--;
 
-        // Collision avec loups
-        for (let j = wolves.length - 1; j >= 0; j--) {
-          const w = wolves[j];
-          if (b.mesh.position.distanceTo(w.mesh.position) < 1.0) {
-            w.health--;
-            b.life = 0;
-            if (w.health <= 0) {
-              scene.remove(w.mesh);
-              wolves.splice(j, 1);
-            }
-            break;
+        // Touche Joueur
+        if (b.team !== 'blue' && !player.dead && b.mesh.position.distanceTo(player.position) < 0.85) {
+          player.health -= 1;
+          playHitSound();
+          updateHealthUI();
+          b.life = 0;
+          const flash = document.getElementById('damage-flash');
+          flash.style.opacity = '1'; setTimeout(() => flash.style.opacity = '0', 150);
+
+          if (player.health <= 0) {
+            player.dead = true;
+            updateScoreboard();
+            addKillLog("Vous avez été éliminé par l'équipe Rouge !");
           }
         }
+
+        // Touche Bots
+        bots.forEach(bot => {
+          if (bot.health > 0 && bot.team !== b.team && b.mesh.position.distanceTo(bot.mesh.position) < 0.85) {
+            bot.health -= 1;
+            update3DHealthBar(bot);
+            b.life = 0;
+            if (bot.health <= 0) {
+              scene.remove(bot.mesh);
+              updateScoreboard();
+              addKillLog(bot.team === 'red' ? "Équipe Bleue a éliminé un Rouge !" : "Un allié Bleu a été éliminé !");
+            }
+          }
+        });
+
+        // Touche Loups
+        wolves.forEach(wolf => {
+          if (wolf.health > 0 && b.mesh.position.distanceTo(wolf.mesh.position) < 0.85) {
+            wolf.health -= 1;
+            update3DHealthBar(wolf);
+            b.life = 0;
+            if (wolf.health <= 0) {
+              scene.remove(wolf.mesh);
+              addKillLog("Un loup a été abattu !");
+            }
+          }
+        });
 
         if (b.life <= 0) {
           scene.remove(b.mesh);
@@ -607,33 +692,12 @@
       }
     }
 
-    function updateWolves() {
-      wolves.forEach(w => {
-        const dist = w.mesh.position.distanceTo(player.position);
-        if (dist < 12 && !player.dead) {
-          // Mode Traque
-          w.mesh.lookAt(player.position.x, w.mesh.position.y, player.position.z);
-          w.mesh.translateZ(w.speed);
-
-          if (dist < 1.5) takeDamage(1);
-        } else {
-          // Patrouille passive
-          if (w.mesh.position.distanceTo(w.targetPos) < 2) {
-            w.targetPos.set((Math.random() - 0.5) * 90, 0, (Math.random() - 0.5) * 90);
-          }
-          w.mesh.lookAt(w.targetPos.x, w.mesh.position.y, w.targetPos.z);
-          w.mesh.translateZ(w.speed * 0.5);
-        }
-      });
-    }
-
     function setupControls() {
       document.getElementById('start-btn').addEventListener('click', () => {
         document.getElementById('instructions').style.display = 'none';
         if (!isMobile) document.body.requestPointerLock();
       });
 
-      // Souris PC
       document.addEventListener('mousemove', (e) => {
         if (isMobile || document.pointerLockElement !== document.body) return;
         yaw -= e.movementX * 0.0025;
@@ -649,14 +713,14 @@
 
       window.addEventListener('mousedown', (e) => {
         if (e.button === 0) shoot();
-        if (e.button === 2) toggleAim(true);
+        if (e.button === 2) player.isAiming = true;
       });
       window.addEventListener('mouseup', (e) => {
-        if (e.button === 2) toggleAim(false);
+        if (e.button === 2) player.isAiming = false;
       });
       window.addEventListener('contextmenu', (e) => e.preventDefault());
 
-      // Touch tactile mobile
+      // Joystick Tactile
       if (isMobile) {
         const jZone = document.getElementById('joystick-zone');
         const jKnob = document.getElementById('joystick-knob');
@@ -678,17 +742,7 @@
               joystickMove.x = (Math.cos(angle) * dist) / 40;
               joystickMove.y = (Math.sin(angle) * dist) / 40;
 
-              jKnob.style.transform = `translate(${joystickMove.x * 30}px, ${joystickMove.y * 30}px)`;
-            } else if (touch.identifier === lookTouchId) {
-              const dx = touch.clientX - lastLookPos.x;
-              const dy = touch.clientY - lastLookPos.y;
-              yaw -= dx * 0.005;
-              pitch -= dy * 0.005;
-              pitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, pitch));
-              camera.rotation.order = 'YXZ';
-              camera.rotation.y = yaw;
-              camera.rotation.x = pitch;
-              lastLookPos = { x: touch.clientX, y: touch.clientY };
+              jKnob.style.transform = `translate(${joystickMove.x * 25}px, ${joystickMove.y * 25}px)`;
             }
           }
         });
@@ -699,21 +753,12 @@
               joystickTouchId = null;
               joystickMove = { x: 0, y: 0 };
               jKnob.style.transform = 'translate(0px, 0px)';
-            } else if (touch.identifier === lookTouchId) {
-              lookTouchId = null;
             }
           }
         });
 
-        document.getElementById('shoot-btn').addEventListener('touchstart', (e) => {
-          e.preventDefault();
-          shoot();
-        });
-
-        document.getElementById('aim-btn').addEventListener('touchstart', (e) => {
-          e.preventDefault();
-          toggleAim(!player.isAiming);
-        });
+        document.getElementById('shoot-btn').addEventListener('touchstart', (e) => { e.preventDefault(); shoot(); });
+        document.getElementById('aim-btn').addEventListener('touchstart', (e) => { e.preventDefault(); player.isAiming = !player.isAiming; });
       }
     }
 
@@ -726,8 +771,8 @@
     function animate() {
       requestAnimationFrame(animate);
       updatePlayer();
+      updateAI();
       updateBullets();
-      updateWolves();
       renderer.render(scene, camera);
     }
 
@@ -735,5 +780,5 @@
   </script>
 </body>
 </html>
-Airsoft_Bodycam_Multijoueur.html
-Affichage de Airsoft_Bodycam_Multijoueur.html en cours...
+Airsoft_PvP_5v5_Forêt_Bodycam.html
+Affichage de Airsoft_PvP_5v5_Forêt_Bodycam.html en cours...
