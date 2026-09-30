@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>L'Arène - Airsoft Bodycam 3D</title>
+    <title>L'Arène - Airsoft Bodycam vs Wild Beasts 3D</title>
     <!-- Tailwind CSS pour l'UI -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Three.js Library -->
@@ -16,7 +16,7 @@
             height: 100%;
             overflow: hidden;
             background-color: #000;
-            font-family: 'Inter', sans-serif;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
             user-select: none;
             -webkit-user-select: none;
         }
@@ -35,8 +35,8 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: radial-gradient(circle, rgba(0,0,0,0) 45%, rgba(0,0,0,0.65) 100%);
-            box-shadow: inset 0 0 90px rgba(0,0,0,0.85);
+            background: radial-gradient(circle, rgba(0,0,0,0) 40%, rgba(0,0,0,0.7) 100%);
+            box-shadow: inset 0 0 100px rgba(0,0,0,0.9);
         }
 
         .scanlines {
@@ -46,7 +46,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.3) 50%);
             background-size: 100% 4px;
             opacity: 0.25;
         }
@@ -79,8 +79,8 @@
         }
 
         .action-btn {
-            width: 70px;
-            height: 70px;
+            width: 75px;
+            height: 75px;
             border-radius: 50%;
             position: absolute;
             display: none;
@@ -90,28 +90,29 @@
             font-weight: bold;
             font-size: 13px;
             touch-action: none;
-            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+            box-shadow: 0 0 15px rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
         }
 
         .shoot-btn {
             bottom: 30px;
             right: 30px;
-            background: rgba(239, 68, 68, 0.8);
-            border: 3px solid rgba(255, 255, 255, 0.5);
-            width: 80px;
-            height: 80px;
+            background: rgba(239, 68, 68, 0.85);
+            border: 3px solid rgba(255, 255, 255, 0.6);
+            width: 85px;
+            height: 85px;
         }
         .shoot-btn:active { background: rgba(220, 38, 38, 1); transform: scale(0.95); }
 
         .aim-btn {
-            bottom: 120px;
+            bottom: 125px;
             right: 35px;
-            background: rgba(59, 130, 246, 0.8);
-            border: 3px solid rgba(255, 255, 255, 0.5);
+            background: rgba(59, 130, 246, 0.85);
+            border: 3px solid rgba(255, 255, 255, 0.6);
         }
         .aim-btn:active { background: rgba(37, 99, 235, 1); }
 
-        /* Bot Health Labels Overlay Container */
+        /* Animal Health Labels Overlay Container */
         #labels-container {
             position: absolute;
             top: 0;
@@ -122,53 +123,53 @@
             overflow: hidden;
         }
 
-        .bot-label {
+        .beast-label {
             position: absolute;
             transform: translate(-50%, -100%);
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 2px;
-            transition: opacity 0.1s ease;
+            transition: opacity 0.15s ease;
         }
     </style>
 </head>
 <body class="bg-black text-white select-none">
 
-    <!-- 3D Canvas -->
+    <!-- 3D Canvas Container -->
     <div id="canvas-container"></div>
 
     <!-- Bodycam Filters -->
     <div class="bodycam-overlay"></div>
     <div class="scanlines"></div>
 
-    <!-- Bot HP Labels Layer -->
+    <!-- Beast HP Labels Layer -->
     <div id="labels-container"></div>
 
     <!-- HUD Overlay -->
-    <div id="hud" class="absolute top-0 left-0 w-full h-full pointer-events-none p-4 flex flex-col justify-between">
+    <div id="hud" class="absolute top-0 left-0 w-full h-full pointer-events-none p-4 flex flex-col justify-between z-10">
         <!-- Top Bar -->
         <div class="flex justify-between items-start">
-            <div class="flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10">
+            <div class="flex items-center gap-2 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10 shadow-lg">
                 <div class="w-3 h-3 rounded-full bg-red-600 animate-pulse"></div>
-                <span class="text-xs font-mono tracking-widest text-red-500 font-bold">REC [BODYCAM #04]</span>
+                <span class="text-xs font-mono tracking-widest text-red-500 font-bold">REC [BODYCAM #04 - TACTICAL]</span>
             </div>
             
-            <div class="bg-black/60 backdrop-blur-md px-4 py-2 rounded-lg border border-white/10 text-center">
-                <div class="text-xs text-gray-400 uppercase tracking-wider">Éliminations</div>
-                <div id="kill-count" class="text-2xl font-black text-amber-400">0</div>
+            <div class="bg-black/70 backdrop-blur-md px-4 py-2 rounded-lg border border-white/10 text-center shadow-lg">
+                <div class="text-xs text-gray-400 uppercase tracking-wider font-semibold">Bêtes Éliminées</div>
+                <div id="kill-count" class="text-2xl font-black text-amber-400">0 / 10</div>
             </div>
         </div>
 
         <!-- Dynamic Crosshair -->
         <div id="crosshair" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center transition-opacity duration-200">
-            <div class="w-2 h-2 rounded-full bg-white/80 border border-black/60"></div>
+            <div class="w-2.5 h-2.5 rounded-full bg-white/90 border border-black/80 shadow-sm"></div>
         </div>
 
         <!-- Bottom Bar -->
         <div class="flex justify-between items-end pb-2">
-            <div class="bg-black/60 backdrop-blur-md p-3 rounded-xl border border-white/10">
-                <div class="text-xs text-gray-400 mb-1 font-semibold uppercase">Hits Subis (Max 5)</div>
+            <div class="bg-black/70 backdrop-blur-md p-3.5 rounded-xl border border-white/10 shadow-lg">
+                <div class="text-xs text-gray-400 mb-1 font-semibold uppercase tracking-wider">Vie du Joueur (5 Touches)</div>
                 <div id="health-dots" class="flex gap-1.5">
                     <div class="w-6 h-6 rounded-md bg-emerald-500 border border-emerald-400 transition-all duration-300"></div>
                     <div class="w-6 h-6 rounded-md bg-emerald-500 border border-emerald-400 transition-all duration-300"></div>
@@ -178,46 +179,46 @@
                 </div>
             </div>
 
-            <div class="text-right text-xs text-gray-400 bg-black/60 px-3 py-2 rounded-lg backdrop-blur-md border border-white/10">
-                <div>MODE: <span class="text-white font-bold">CHACUN POUR SOI</span></div>
-                <div>JOUEURS ACTIFS: <span class="text-emerald-400 font-bold" id="players-alive">20/20</span></div>
+            <div class="text-right text-xs text-gray-300 bg-black/70 px-4 py-2.5 rounded-xl backdrop-blur-md border border-white/10 shadow-lg space-y-0.5">
+                <div>OBJECTIF: <span class="text-amber-400 font-bold">SURVIVRE À L'ATTAQUE</span></div>
+                <div>ANIMAUX RESTANTS: <span class="text-emerald-400 font-bold" id="beasts-alive">10/10</span></div>
             </div>
         </div>
     </div>
 
     <!-- Mobile Touch Controls -->
-    <div id="touch-rotation-zone" class="absolute top-0 right-0 w-1/2 h-full touch-zone z-10 md:hidden"></div>
+    <div id="touch-rotation-zone" class="absolute top-0 right-0 w-1/2 h-full touch-zone z-20 md:hidden"></div>
     <div id="joystick-base" class="joystick-base z-20">
         <div id="joystick-thumb" class="joystick-thumb"></div>
     </div>
     <button id="shoot-btn" class="action-btn shoot-btn z-20">TIRER</button>
     <button id="aim-btn" class="action-btn aim-btn z-20">VISER</button>
 
-    <!-- Start / Death Overlay -->
-    <div id="menu-overlay" class="absolute inset-0 bg-black/80 backdrop-blur-lg flex items-center justify-center z-30">
+    <!-- Start / Victory / Death Overlay -->
+    <div id="menu-overlay" class="absolute inset-0 bg-black/85 backdrop-blur-lg flex items-center justify-center z-30">
         <div class="max-w-md w-full bg-slate-900/90 p-8 rounded-2xl border border-slate-700 shadow-2xl text-center">
-            <h1 class="text-3xl font-black text-amber-500 tracking-wider mb-2 uppercase">L'Arène - Airsoft 3D</h1>
-            <p class="text-gray-400 text-sm mb-6">Simulation Airsoft Bodycam avec structures à étage et viseur Red Dot.</p>
+            <h1 class="text-3xl font-black text-amber-500 tracking-wider mb-2 uppercase">Airsoft vs Animaux 3D</h1>
+            <p class="text-gray-400 text-sm mb-6">Simulation Airsoft Bodycam avec loups féroces et bâtiment à fenêtres.</p>
 
             <div class="bg-slate-800/60 p-4 rounded-xl border border-slate-700 text-left text-sm text-gray-300 mb-6 space-y-2">
-                <p class="font-bold text-white border-b border-slate-700 pb-1 mb-2">🎮 Commandes :</p>
-                <p><span class="text-amber-400 font-semibold">PC :</span> ZQSD/WASD, Clic Gauche = Tirer, Clic Droit = Viser (Red Dot ADS).</p>
-                <p><span class="text-amber-400 font-semibold">Mobile :</span> Stick (gauche), Visée tactile (droite), Boutons "TIRER" et "VISER".</p>
-                <p><span class="text-amber-400 font-semibold">Nouveauté :</span> Bâtiment à 2 niveaux accessible via les escaliers !</p>
+                <p class="font-bold text-white border-b border-slate-700 pb-1.5 mb-2">🎮 Nouveautés & Commandes :</p>
+                <p><span class="text-amber-400 font-semibold">🐺 10 Animaux Agressifs :</span> Des loups vous traquent et vous attaquent au corps-à-corps !</p>
+                <p><span class="text-amber-400 font-semibold">🎯 Viseur Red Dot :</span> Clic Droit (PC) / Bouton VISER (Mobile) pour utiliser le point rouge.</p>
+                <p><span class="text-amber-400 font-semibold">🏠 Bâtiment Tactique :</span> Rez-de-chaussée, escalier et 2ème étage avec fenêtres pour poster des tirs !</p>
             </div>
 
             <button id="start-btn" class="w-full py-4 bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-black rounded-xl text-lg transition-all duration-200 shadow-lg shadow-amber-500/20">
-                REJOINDRER LA PARTIE
+                LANCER LA PARTIE
             </button>
         </div>
     </div>
 
-    <!-- Red Screen Hit Flash -->
-    <div id="hit-flash" class="absolute inset-0 bg-red-600/30 pointer-events-none opacity-0 transition-opacity duration-150 z-20"></div>
+    <!-- Red Screen Damage Flash -->
+    <div id="hit-flash" class="absolute inset-0 bg-red-600/40 pointer-events-none opacity-0 transition-opacity duration-150 z-20"></div>
 
     <script>
         const MAX_HITS = 5;
-        const TOTAL_BOTS = 19;
+        const TOTAL_BEASTS = 10;
         const MAP_SIZE = 130;
 
         let scene, camera, renderer;
@@ -227,12 +228,12 @@
         let isMobile = false;
         let isAiming = false;
 
-        // Player & Camera parameters
+        // Player & Camera Parameters
         const player = {
-            position: new THREE.Vector3(0, 1.6, 20),
+            position: new THREE.Vector3(0, 1.6, 25),
             velocity: new THREE.Vector3(),
             rotation: new THREE.Euler(0, 0, 0, 'YXZ'),
-            speed: 7.0,
+            speed: 7.5,
             radius: 0.5,
             height: 1.6,
             verticalVelocity: 0,
@@ -241,7 +242,7 @@
 
         const keys = { w: false, a: false, s: false, d: false };
         const projectiles = [];
-        const bots = [];
+        const beasts = [];
         const obstacles = [];
         const ramps = [];
 
@@ -274,10 +275,10 @@
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             container.appendChild(renderer.domElement);
 
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.45);
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
             scene.add(ambientLight);
 
-            const sunLight = new THREE.DirectionalLight(0xfff5e6, 1.3);
+            const sunLight = new THREE.DirectionalLight(0xfff5e6, 1.4);
             sunLight.position.set(40, 70, 20);
             sunLight.castShadow = true;
             sunLight.shadow.mapSize.width = 2048;
@@ -293,7 +294,7 @@
 
             createTerrain();
             createArenaBoundaries();
-            buildTwoStoryBuilding();
+            buildBuildingWithWindowsAndStairs();
             buildForestAndObstacles();
             createWeaponWithRedDot();
 
@@ -343,88 +344,126 @@
             });
         }
 
-        function buildTwoStoryBuilding() {
-            const concreteMat = new THREE.MeshStandardMaterial({ color: 0x70757a, roughness: 0.8 });
+        function buildBuildingWithWindowsAndStairs() {
+            const wallMat = new THREE.MeshStandardMaterial({ color: 0x6e7278, roughness: 0.8 });
+            const floorMat = new THREE.MeshStandardMaterial({ color: 0x4a4d52, roughness: 0.7 });
             const woodMat = new THREE.MeshStandardMaterial({ color: 0x5c4033, roughness: 0.7 });
-            const metalMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.5 });
+            const metalMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.6 });
 
-            // Building Center position
             const bx = 0, bz = -10;
-            const floorHeight = 3.5;
+            const width = 18, depth = 14;
+            const floorHeight = 3.6;
+            const wallThick = 0.4;
 
-            // 1. First Floor Slab (2nd Story Platform) - 20x16m
-            const secondFloorGeo = new THREE.BoxGeometry(20, 0.3, 16);
-            const secondFloor = new THREE.Mesh(secondFloorGeo, concreteMat);
+            // 1. First Floor Slab (Dalle du 2ème étage)
+            const secondFloorGeo = new THREE.BoxGeometry(width, 0.3, depth);
+            const secondFloor = new THREE.Mesh(secondFloorGeo, floorMat);
             secondFloor.position.set(bx, floorHeight, bz);
             secondFloor.receiveShadow = true;
             secondFloor.castShadow = true;
             scene.add(secondFloor);
             obstacles.push(new THREE.Box3().setFromObject(secondFloor));
 
-            // Support Pillars (Poteaux du RDC)
+            // Helper to build walls with window cutouts (Murs découpés avec fenêtres)
+            const createWallWithWindow = (x, y, z, w, h, d, windowWidth = 2.4, windowHeight = 1.4) => {
+                const wallGroup = new THREE.Group();
+
+                // Left Section
+                const sideW = (w - windowWidth) / 2;
+                if (sideW > 0) {
+                    const leftWall = new THREE.Mesh(new THREE.BoxGeometry(sideW, h, d), wallMat);
+                    leftWall.position.set(-w / 2 + sideW / 2, 0, 0);
+                    leftWall.castShadow = true; leftWall.receiveShadow = true;
+                    wallGroup.add(leftWall);
+                    obstacles.push(new THREE.Box3().setFromObject(leftWall));
+
+                    const rightWall = new THREE.Mesh(new THREE.BoxGeometry(sideW, h, d), wallMat);
+                    rightWall.position.set(w / 2 - sideW / 2, 0, 0);
+                    rightWall.castShadow = true; rightWall.receiveShadow = true;
+                    wallGroup.add(rightWall);
+                    obstacles.push(new THREE.Box3().setFromObject(rightWall));
+                }
+
+                // Bottom section under window (Allège)
+                const botH = (h - windowHeight) / 2;
+                const bottomWall = new THREE.Mesh(new THREE.BoxGeometry(windowWidth, botH, d), wallMat);
+                bottomWall.position.set(0, -h / 2 + botH / 2, 0);
+                bottomWall.castShadow = true; bottomWall.receiveShadow = true;
+                wallGroup.add(bottomWall);
+                obstacles.push(new THREE.Box3().setFromObject(bottomWall));
+
+                // Top lintel section over window (Linto)
+                const topH = h - botH - windowHeight;
+                const topWall = new THREE.Mesh(new THREE.BoxGeometry(windowWidth, topH, d), wallMat);
+                topWall.position.set(0, h / 2 - topH / 2, 0);
+                topWall.castShadow = true; topWall.receiveShadow = true;
+                wallGroup.add(topWall);
+                obstacles.push(new THREE.Box3().setFromObject(topWall));
+
+                // Window Sill Frame
+                const sill = new THREE.Mesh(new THREE.BoxGeometry(windowWidth + 0.1, 0.1, d + 0.15), metalMat);
+                sill.position.set(0, -h / 2 + botH + 0.05, 0);
+                wallGroup.add(sill);
+
+                wallGroup.position.set(x, y, z);
+                scene.add(wallGroup);
+            };
+
+            // Ground Floor Pillars & Partial Walls
             const pillarGeo = new THREE.BoxGeometry(0.6, floorHeight, 0.6);
-            const pillarOffsets = [
-                [-9.5, -7.5], [9.5, -7.5], [-9.5, 7.5], [9.5, 7.5],
-                [0, -7.5], [0, 7.5]
-            ];
-            pillarOffsets.forEach(([px, pz]) => {
-                const pillar = new THREE.Mesh(pillarGeo, concreteMat);
+            [[-8.5, -6.5], [8.5, -6.5], [-8.5, 6.5], [8.5, 6.5]].forEach(([px, pz]) => {
+                const pillar = new THREE.Mesh(pillarGeo, wallMat);
                 pillar.position.set(bx + px, floorHeight / 2, bz + pz);
-                pillar.castShadow = true;
-                pillar.receiveShadow = true;
+                pillar.castShadow = true; pillar.receiveShadow = true;
                 scene.add(pillar);
                 obstacles.push(new THREE.Box3().setFromObject(pillar));
             });
 
-            // Guardrails & Barriers on 2nd Floor (Rebardes pour tirer depuis les hauteurs)
-            const railGeo = new THREE.BoxGeometry(0.2, 1.1, 16);
-            // Left & Right railings
-            [-10, 10].forEach(rx => {
-                const rail = new THREE.Mesh(railGeo, metalMat);
-                rail.position.set(bx + rx, floorHeight + 0.55, bz);
-                rail.castShadow = true;
-                scene.add(rail);
-                obstacles.push(new THREE.Box3().setFromObject(rail));
+            // 2nd Floor Walls WITH WINDOWS (Fenêtres pour poster des tirs vers l'extérieur)
+            const secondLevelCenterY = floorHeight + 1.4;
+            // Front & Back Walls with Windows
+            createWallWithWindow(bx, secondLevelCenterY, bz + depth / 2, width, 2.8, wallThick, 3.2, 1.4);
+            createWallWithWindow(bx, secondLevelCenterY, bz - depth / 2, width, 2.8, wallThick, 3.2, 1.4);
+
+            // Left & Right Guardrails/Walls
+            const sideWallGeo = new THREE.BoxGeometry(wallThick, 1.2, depth);
+            [-width / 2, width / 2].forEach(rx => {
+                const sideWall = new THREE.Mesh(sideWallGeo, wallMat);
+                sideWall.position.set(bx + rx, floorHeight + 0.6, bz);
+                sideWall.castShadow = true;
+                scene.add(sideWall);
+                obstacles.push(new THREE.Box3().setFromObject(sideWall));
             });
 
-            // Back railing
-            const backRailGeo = new THREE.BoxGeometry(20, 1.1, 0.2);
-            const backRail = new THREE.Mesh(backRailGeo, metalMat);
-            backRail.position.set(bx, floorHeight + 0.55, bz - 8);
-            backRail.castShadow = true;
-            scene.add(backRail);
-            obstacles.push(new THREE.Box3().setFromObject(backRail));
-
-            // 2. Stairs / Access Ramp to 2nd Floor (Escalier fonctionnel)
-            const rampLength = 8;
-            const rampWidth = 3;
+            // 2. Escalier Practicable vers le 2ème Étage
+            const rampLength = 8.5;
+            const rampWidth = 2.8;
             const rampGeo = new THREE.BoxGeometry(rampWidth, 0.2, rampLength);
             const ramp = new THREE.Mesh(rampGeo, woodMat);
-            
-            // Angle to reach floorHeight (3.5m) over rampLength (8m)
+
             const angle = Math.atan2(floorHeight, rampLength);
             ramp.rotation.x = angle;
-            ramp.position.set(bx, floorHeight / 2, bz + 8 + (rampLength / 2) * Math.cos(angle) - 1);
+            ramp.position.set(bx, floorHeight / 2, bz + depth / 2 + (rampLength / 2) * Math.cos(angle) - 0.5);
             ramp.receiveShadow = true;
             ramp.castShadow = true;
             scene.add(ramp);
 
-            // Register Stair Ramp surface for climbing physics
+            // Escalier Ramp Physics registration
             ramps.push({
                 mesh: ramp,
                 bounds: new THREE.Box3().setFromObject(ramp),
                 startY: 0,
                 endY: floorHeight,
-                startZ: bz + 8 + rampLength,
-                endZ: bz + 8
+                startZ: bz + depth / 2 + rampLength,
+                endZ: bz + depth / 2
             });
         }
 
         function buildForestAndObstacles() {
             const isNearCenter = (x, z) => Math.hypot(x, z + 10) < 18;
 
-            // 1. 3D Trees
-            for (let i = 0; i < 55; i++) {
+            // 1. 3D Trees (Pins et feuillus)
+            for (let i = 0; i < 50; i++) {
                 let x = (Math.random() - 0.5) * (MAP_SIZE - 16);
                 let z = (Math.random() - 0.5) * (MAP_SIZE - 16);
 
@@ -450,7 +489,7 @@
             const containerMat = new THREE.MeshStandardMaterial({ color: 0x2b4c7e, roughness: 0.4, metalness: 0.5 });
             const tireMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9 });
 
-            for (let i = 0; i < 30; i++) {
+            for (let i = 0; i < 26; i++) {
                 let x = (Math.random() - 0.5) * (MAP_SIZE - 20);
                 let z = (Math.random() - 0.5) * (MAP_SIZE - 20);
 
@@ -462,16 +501,14 @@
                     const wall = new THREE.Mesh(new THREE.BoxGeometry(3, 2, 0.3), wallMat);
                     wall.position.set(x, 1, z);
                     wall.rotation.y = Math.random() * Math.PI;
-                    wall.castShadow = true;
-                    wall.receiveShadow = true;
+                    wall.castShadow = true; wall.receiveShadow = true;
                     scene.add(wall);
                     obstacles.push(new THREE.Box3().setFromObject(wall));
                 } else if (type === 1) {
                     const container = new THREE.Mesh(new THREE.BoxGeometry(4, 2.4, 2.2), containerMat);
                     container.position.set(x, 1.2, z);
                     container.rotation.y = (Math.floor(Math.random() * 4) * Math.PI) / 2;
-                    container.castShadow = true;
-                    container.receiveShadow = true;
+                    container.castShadow = true; container.receiveShadow = true;
                     scene.add(container);
                     obstacles.push(new THREE.Box3().setFromObject(container));
                 } else if (type === 2) {
@@ -533,7 +570,7 @@
             const bodyMat = new THREE.MeshStandardMaterial({ color: 0x1c1c1c, metalness: 0.8, roughness: 0.3 });
             const sightBodyMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.9, roughness: 0.2 });
 
-            // Main Gun Receiver
+            // Main Weapon Receiver & Barrel
             const body = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.10, 0.48), bodyMat);
             const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.3, 8), bodyMat);
             barrel.rotation.x = Math.PI / 2;
@@ -544,14 +581,14 @@
 
             weaponGroup.add(body, barrel, mag);
 
-            // --- RED DOT SIGHT (Viseur Holo / Point Rouge 3D) ---
+            // --- VISEUR POINT ROUGE (RED DOT SIGHT) ---
             const sightGroup = new THREE.Group();
             sightGroup.position.set(0, 0.08, -0.05);
 
-            // Sight Mount Base
+            // Base Mount
             const base = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.02, 0.12), sightBodyMat);
             
-            // Sight Glass Outer Frame
+            // Outer Lens Frame
             const frameGeo = new THREE.BoxGeometry(0.065, 0.065, 0.02);
             const frame = new THREE.Mesh(frameGeo, sightBodyMat);
             frame.position.set(0, 0.045, 0);
@@ -560,14 +597,14 @@
             const glassMat = new THREE.MeshPhysicalMaterial({
                 color: 0x88ccff,
                 transparent: true,
-                opacity: 0.3,
+                opacity: 0.35,
                 roughness: 0.1,
                 transmission: 0.9
             });
             const lens = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.005), glassMat);
             lens.position.set(0, 0.045, 0);
 
-            // Glowing Red Dot Center (Point Rouge)
+            // Point Rouge Lamineux (Red Dot Light)
             const dotGeo = new THREE.SphereGeometry(0.004, 8, 8);
             const dotMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
             redDotDot = new THREE.Mesh(dotGeo, dotMat);
@@ -576,7 +613,6 @@
             sightGroup.add(base, frame, lens, redDotDot);
             weaponGroup.add(sightGroup);
 
-            // Position initially in Hip-Fire offset
             weaponGroup.position.copy(normalWeaponPos);
             camera.add(weaponGroup);
             scene.add(camera);
@@ -584,94 +620,133 @@
             weaponMesh = weaponGroup;
         }
 
-        function spawnBots() {
-            bots.forEach(b => {
+        function spawn3DBeastModel() {
+            const wolfGroup = new THREE.Group();
+
+            const furMat = new THREE.MeshStandardMaterial({ color: 0x3d352e, roughness: 0.8 });
+            const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 }); // Yeux Rouges Féroces
+            const clawMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a });
+
+            // 1. Torso / Body
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.65, 1.3), furMat);
+            body.position.y = 0.65;
+            body.castShadow = true;
+            wolfGroup.add(body);
+
+            // 2. Head & Snout
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.45, 0.5), furMat);
+            head.position.set(0, 0.95, -0.75);
+            head.castShadow = true;
+
+            const snout = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.22, 0.35), furMat);
+            snout.position.set(0, 0.88, -1.05);
+            snout.castShadow = true;
+
+            // Red Eyes
+            const eyeGeo = new THREE.BoxGeometry(0.08, 0.06, 0.08);
+            const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+            leftEye.position.set(-0.16, 1.02, -0.92);
+            const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+            rightEye.position.set(0.16, 1.02, -0.92);
+
+            // Ears
+            const earGeo = new THREE.ConeGeometry(0.12, 0.25, 4);
+            const leftEar = new THREE.Mesh(earGeo, furMat);
+            leftEar.position.set(-0.16, 1.25, -0.7);
+            const rightEar = new THREE.Mesh(earGeo, furMat);
+            rightEar.position.set(0.16, 1.25, -0.7);
+
+            wolfGroup.add(head, snout, leftEye, rightEye, leftEar, rightEar);
+
+            // 3. Legs (4 Pattes)
+            const legGeo = new THREE.BoxGeometry(0.18, 0.6, 0.18);
+            const legPositions = [
+                [-0.24, 0.3, -0.45], [0.24, 0.3, -0.45],
+                [-0.24, 0.3, 0.45], [0.24, 0.3, 0.45]
+            ];
+            legPositions.forEach(([lx, ly, lz]) => {
+                const leg = new THREE.Mesh(legGeo, furMat);
+                leg.position.set(lx, ly, lz);
+                leg.castShadow = true;
+                wolfGroup.add(leg);
+            });
+
+            // 4. Tail
+            const tail = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.5), furMat);
+            tail.position.set(0, 0.75, 0.85);
+            tail.rotation.x = -0.4;
+            wolfGroup.add(tail);
+
+            return wolfGroup;
+        }
+
+        function spawnBeasts() {
+            beasts.forEach(b => {
                 scene.remove(b.mesh);
                 if (b.labelElem) b.labelElem.remove();
             });
-            bots.length = 0;
+            beasts.length = 0;
 
             const labelsContainer = document.getElementById('labels-container');
             labelsContainer.innerHTML = '';
 
-            const botMat = new THREE.MeshStandardMaterial({ color: 0xd96b27, roughness: 0.5 });
-            const headMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+            const beastNames = ["Loup Alpha", "Traqueur", "Ombre", "Croc-Rouge", "Prédateur", "Grizzly-Bête", "Furie", "Sauvage", "Spectre", "Bête-Titan"];
 
-            const botNames = ["Alpha", "Bravo", "Ghost", "Viper", "Slayer", "Shadow", "Raptor", "Kev", "Alex", "Nexus", "Hawk", "Eagle", "Tango", "Fox", "Hunter", "Reaper", "Blade", "Titan", "Zero"];
+            for (let i = 0; i < TOTAL_BEASTS; i++) {
+                const wolfModel = spawn3DBeastModel();
 
-            for (let i = 0; i < TOTAL_BOTS; i++) {
-                const botGroup = new THREE.Group();
+                // Position randomly around the arena (some inside/near building)
+                let spawnX = (Math.random() - 0.5) * (MAP_SIZE - 25);
+                let spawnZ = (Math.random() - 0.5) * (MAP_SIZE - 25);
+                let spawnY = 0;
 
-                const bodyMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 1.4, 8), botMat);
-                bodyMesh.position.y = 0.7;
-                bodyMesh.castShadow = true;
-                botGroup.add(bodyMesh);
-
-                const headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 8), headMat);
-                headMesh.position.y = 1.5;
-                headMesh.castShadow = true;
-                botGroup.add(headMesh);
-
-                const gunMesh = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.4), headMat);
-                gunMesh.position.set(0.2, 1.1, -0.3);
-                botGroup.add(gunMesh);
-
-                // Spawn 30% of bots directly on the 2nd floor platform!
-                let spawnX, spawnY = 0, spawnZ;
-                if (i < 6) {
-                    spawnX = (Math.random() - 0.5) * 16;
-                    spawnY = 3.5;
-                    spawnZ = -10 + (Math.random() - 0.5) * 12;
-                } else {
-                    spawnX = (Math.random() - 0.5) * (MAP_SIZE - 20);
-                    spawnZ = (Math.random() - 0.5) * (MAP_SIZE - 20);
+                // 2 beasts spawn at 2nd floor platform
+                if (i < 2) {
+                    spawnX = (Math.random() - 0.5) * 12;
+                    spawnZ = -10 + (Math.random() - 0.5) * 8;
+                    spawnY = 3.6;
                 }
 
-                botGroup.position.set(spawnX, spawnY, spawnZ);
-                scene.add(botGroup);
+                wolfModel.position.set(spawnX, spawnY, spawnZ);
+                scene.add(wolfModel);
 
-                // Create UI Label (Name + HP bar above head)
+                // UI HP Label
                 const labelElem = document.createElement('div');
-                labelElem.className = 'bot-label';
+                labelElem.className = 'beast-label';
                 labelElem.innerHTML = `
-                    <span class="text-[10px] font-bold text-amber-300 drop-shadow-md">${botNames[i % botNames.length]}</span>
-                    <div class="w-10 h-1.5 bg-black/70 rounded-full border border-white/20 overflow-hidden">
+                    <span class="text-[10px] font-bold text-red-400 drop-shadow-md">🐺 ${beastNames[i]}</span>
+                    <div class="w-12 h-1.5 bg-black/80 rounded-full border border-white/20 overflow-hidden">
                         <div class="hp-bar w-full h-full bg-emerald-400 transition-all duration-200"></div>
                     </div>
                 `;
                 labelsContainer.appendChild(labelElem);
 
-                bots.push({
-                    mesh: botGroup,
-                    position: botGroup.position,
+                beasts.push({
+                    mesh: wolfModel,
+                    position: wolfModel.position,
                     hits: 0,
                     labelElem: labelElem,
-                    moveTimer: 0,
-                    targetDir: new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize(),
-                    shootCooldown: Math.random() * 2 + 1
+                    attackCooldown: 0,
+                    speed: 4.8 + Math.random() * 1.5
                 });
             }
 
-            document.getElementById('players-alive').innerText = `${bots.length + 1}/20`;
+            document.getElementById('beasts-alive').innerText = `${beasts.length}/10`;
+            document.getElementById('kill-count').innerText = `${killCount} / 10`;
         }
 
-        function shoot(isPlayer = true, origin = null, direction = null) {
-            if (!isGameActive && isPlayer) return;
+        function shoot(isPlayer = true) {
+            if (!isGameActive) return;
 
             const startPos = new THREE.Vector3();
             const shootDir = new THREE.Vector3();
 
-            if (isPlayer) {
-                camera.getWorldPosition(startPos);
-                camera.getWorldDirection(shootDir);
+            camera.getWorldPosition(startPos);
+            camera.getWorldDirection(shootDir);
 
-                if (weaponMesh) {
-                    weaponMesh.position.z += 0.04;
-                    weaponMesh.rotation.x += 0.04;
-                }
-            } else {
-                startPos.copy(origin);
-                shootDir.copy(direction);
+            if (weaponMesh) {
+                weaponMesh.position.z += 0.04;
+                weaponMesh.rotation.x += 0.04;
             }
 
             // Airsoft BB 6mm
@@ -685,8 +760,7 @@
             projectiles.push({
                 mesh: bb,
                 position: bb.position,
-                velocity: shootDir.clone().multiplyScalar(50),
-                isPlayer: isPlayer,
+                velocity: shootDir.clone().multiplyScalar(55),
                 life: 1.8
             });
         }
@@ -743,15 +817,14 @@
 
             window.addEventListener('mousedown', (e) => {
                 if (!isGameActive) return;
-                if (e.button === 0) shoot(true); // Left Click = Shoot
-                if (e.button === 2) toggleAim(true); // Right Click = Aim Down Sights
+                if (e.button === 0) shoot(true);
+                if (e.button === 2) toggleAim(true);
             });
 
             window.addEventListener('mouseup', (e) => {
                 if (e.button === 2) toggleAim(false);
             });
 
-            // Prevent context menu on right click
             window.addEventListener('contextmenu', e => e.preventDefault());
         }
 
@@ -837,7 +910,7 @@
             isAiming = aiming;
             const crosshair = document.getElementById('crosshair');
             if (isAiming) {
-                crosshair.style.opacity = '0'; // Hide HUD crosshair while using 3D Red Dot Sight
+                crosshair.style.opacity = '0';
             } else {
                 crosshair.style.opacity = '1';
             }
@@ -856,27 +929,23 @@
         }
 
         function updatePlayerVerticalPos(nextPos) {
-            // Check stair ramp elevation
             let targetY = 1.6;
 
             for (let ramp of ramps) {
                 if (ramp.bounds.containsPoint(new THREE.Vector3(nextPos.x, nextPos.y, nextPos.z))) {
-                    // Calculate height lerp on ramp Z axis
                     const factor = Math.max(0, Math.min(1, (ramp.startZ - nextPos.z) / (ramp.startZ - ramp.endZ)));
                     targetY = 1.6 + factor * (ramp.endY - ramp.startY);
                     break;
                 }
             }
 
-            // Check if walking on the 2nd floor platform
             const bx = 0, bz = -10;
-            if (Math.abs(nextPos.x - bx) <= 10 && Math.abs(nextPos.z - bz) <= 8) {
+            if (Math.abs(nextPos.x - bx) <= 9 && Math.abs(nextPos.z - bz) <= 7) {
                 if (player.position.y >= 3.0) {
-                    targetY = 3.5 + 1.6; // 2nd Floor elevation
+                    targetY = 3.6 + 1.6;
                 }
             }
 
-            // Smooth vertical transition (Climbing stairs)
             player.position.y += (targetY - player.position.y) * 0.2;
         }
 
@@ -891,9 +960,9 @@
 
             if (isGameActive) {
                 updatePlayer(delta);
-                updateBots(delta);
+                updateBeasts(delta);
                 updateProjectiles(delta);
-                updateBotLabels();
+                updateBeastLabels();
             }
 
             renderer.render(scene, camera);
@@ -951,7 +1020,6 @@
             camera.rotation.x = player.rotation.x;
             camera.rotation.y = player.rotation.y;
 
-            // Transition weapon position for ADS Red Dot Aiming & FOV Zoom
             if (weaponMesh) {
                 const targetPos = isAiming ? aimWeaponPos : normalWeaponPos;
                 weaponMesh.position.lerp(targetPos, 0.2);
@@ -964,36 +1032,30 @@
             }
         }
 
-        function updateBots(delta) {
-            bots.forEach((bot) => {
-                bot.moveTimer -= delta;
-                if (bot.moveTimer <= 0) {
-                    bot.moveTimer = Math.random() * 3 + 1;
-                    bot.targetDir.set((Math.random() - 0.5), 0, (Math.random() - 0.5)).normalize();
-                }
+        // ANIMALS / BEASTS AI HUNTING LOGIC
+        function updateBeasts(delta) {
+            beasts.forEach((beast) => {
+                beast.attackCooldown -= delta;
 
-                const newPos = bot.position.clone().addScaledVector(bot.targetDir, 2.5 * delta);
-                const limit = MAP_SIZE / 2 - 2;
+                // 1. Calculate direction towards player
+                const dirToPlayer = player.position.clone().sub(beast.position);
+                dirToPlayer.y = 0; // Ground movement
+                const distToPlayer = dirToPlayer.length();
 
-                if (Math.abs(newPos.x) < limit && Math.abs(newPos.z) < limit) {
-                    bot.position.copy(newPos);
-                    bot.mesh.rotation.y = Math.atan2(bot.targetDir.x, bot.targetDir.z);
+                if (distToPlayer > 0.1) dirToPlayer.normalize();
+
+                // Rotate beast to face player
+                beast.mesh.rotation.y = Math.atan2(dirToPlayer.x, dirToPlayer.z);
+
+                // 2. Chase Player
+                if (distToPlayer > 1.2) {
+                    const moveStep = dirToPlayer.clone().multiplyScalar(beast.speed * delta);
+                    beast.position.add(moveStep);
                 } else {
-                    bot.targetDir.negate();
-                }
-
-                // AI Bot Shooting Player or other Bots
-                const distToPlayer = bot.position.distanceTo(player.position);
-                if (distToPlayer < 28) {
-                    bot.shootCooldown -= delta;
-                    if (bot.shootCooldown <= 0) {
-                        bot.shootCooldown = Math.random() * 2 + 1.2;
-                        const dirToPlayer = player.position.clone().sub(bot.position).normalize();
-                        dirToPlayer.x += (Math.random() - 0.5) * 0.12;
-                        dirToPlayer.z += (Math.random() - 0.5) * 0.12;
-                        dirToPlayer.normalize();
-
-                        shoot(false, bot.position.clone().add(new THREE.Vector3(0, 1.2, 0)), dirToPlayer);
+                    // 3. Melee Attack Player when in close proximity!
+                    if (beast.attackCooldown <= 0) {
+                        beast.attackCooldown = 1.2; // Attack delay in seconds
+                        registerHitOnPlayer();
                     }
                 }
             });
@@ -1006,49 +1068,40 @@
 
                 const nextPos = p.position.clone().addScaledVector(p.velocity, delta);
 
-                if (!p.isPlayer) {
-                    // Check hitting Player
-                    if (nextPos.distanceTo(player.position) < 0.8) {
-                        registerHitOnPlayer();
-                        scene.remove(p.mesh);
-                        projectiles.splice(i, 1);
-                        continue;
-                    }
-                } else {
-                    // Player shot hitting Bot
-                    let botHit = false;
-                    for (let bIdx = bots.length - 1; bIdx >= 0; bIdx--) {
-                        const bot = bots[bIdx];
-                        const botCenter = bot.position.clone().add(new THREE.Vector3(0, 0.8, 0));
+                let beastHit = false;
+                for (let bIdx = beasts.length - 1; bIdx >= 0; bIdx--) {
+                    const beast = beasts[bIdx];
+                    const beastCenter = beast.position.clone().add(new THREE.Vector3(0, 0.6, 0));
 
-                        if (nextPos.distanceTo(botCenter) < 0.85) {
-                            bot.hits++;
-                            botHit = true;
+                    if (nextPos.distanceTo(beastCenter) < 1.0) {
+                        beast.hits++;
+                        beastHit = true;
 
-                            // Update Bot UI HP Bar
-                            if (bot.labelElem) {
-                                const hpPercent = Math.max(0, (1 - bot.hits / MAX_HITS) * 100);
-                                const hpBar = bot.labelElem.querySelector('.hp-bar');
-                                if (hpBar) hpBar.style.width = `${hpPercent}%`;
-                            }
-
-                            if (bot.hits >= MAX_HITS) {
-                                scene.remove(bot.mesh);
-                                if (bot.labelElem) bot.labelElem.remove();
-                                bots.splice(bIdx, 1);
-                                killCount++;
-                                document.getElementById('kill-count').innerText = killCount;
-                                document.getElementById('players-alive').innerText = `${bots.length + 1}/20`;
-                            }
-                            break;
+                        // Update Beast UI HP Bar
+                        if (beast.labelElem) {
+                            const hpPercent = Math.max(0, (1 - beast.hits / MAX_HITS) * 100);
+                            const hpBar = beast.labelElem.querySelector('.hp-bar');
+                            if (hpBar) hpBar.style.width = `${hpPercent}%`;
                         }
-                    }
 
-                    if (botHit) {
-                        scene.remove(p.mesh);
-                        projectiles.splice(i, 1);
-                        continue;
+                        if (beast.hits >= MAX_HITS) {
+                            scene.remove(beast.mesh);
+                            if (beast.labelElem) beast.labelElem.remove();
+                            beasts.splice(bIdx, 1);
+                            killCount++;
+                            document.getElementById('kill-count').innerText = `${killCount} / 10`;
+                            document.getElementById('beasts-alive').innerText = `${beasts.length}/10`;
+
+                            if (beasts.length === 0) victory();
+                        }
+                        break;
                     }
+                }
+
+                if (beastHit) {
+                    scene.remove(p.mesh);
+                    projectiles.splice(i, 1);
+                    continue;
                 }
 
                 // Check obstacle hit
@@ -1069,32 +1122,30 @@
             }
         }
 
-        function updateBotLabels() {
+        function updateBeastLabels() {
             const tempVec = new THREE.Vector3();
 
-            bots.forEach(bot => {
-                if (!bot.labelElem) return;
+            beasts.forEach(beast => {
+                if (!beast.labelElem) return;
 
-                // Project 3D position above bot head to 2D Screen Space
-                tempVec.copy(bot.position).add(new THREE.Vector3(0, 2.0, 0));
+                tempVec.copy(beast.position).add(new THREE.Vector3(0, 1.6, 0));
                 tempVec.project(camera);
 
-                // Is behind camera?
                 if (tempVec.z > 1) {
-                    bot.labelElem.style.opacity = '0';
+                    beast.labelElem.style.opacity = '0';
                     return;
                 }
 
                 const x = (tempVec.x * 0.5 + 0.5) * window.innerWidth;
                 const y = (-(tempVec.y * 0.5) + 0.5) * window.innerHeight;
 
-                const dist = camera.position.distanceTo(bot.position);
-                if (dist > 35) {
-                    bot.labelElem.style.opacity = '0';
+                const dist = camera.position.distanceTo(beast.position);
+                if (dist > 40) {
+                    beast.labelElem.style.opacity = '0';
                 } else {
-                    bot.labelElem.style.opacity = '1';
-                    bot.labelElem.style.left = `${x}px`;
-                    bot.labelElem.style.top = `${y}px`;
+                    beast.labelElem.style.opacity = '1';
+                    beast.labelElem.style.left = `${x}px`;
+                    beast.labelElem.style.top = `${y}px`;
                 }
             });
         }
@@ -1118,6 +1169,23 @@
             if (playerHits >= MAX_HITS) gameOver();
         }
 
+        function victory() {
+            isGameActive = false;
+            if (document.exitPointerLock) document.exitPointerLock();
+
+            const overlay = document.getElementById('menu-overlay');
+            overlay.innerHTML = `
+                <div class="max-w-md w-full bg-slate-900/90 p-8 rounded-2xl border border-emerald-500/50 shadow-2xl text-center">
+                    <h1 class="text-3xl font-black text-emerald-400 tracking-wider mb-2 uppercase">VICTOIRE !</h1>
+                    <p class="text-gray-300 text-sm mb-6">Vous avez éliminé les 10 bêtes sauvages !</p>
+                    <button onclick="resetGame()" class="w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-lg transition-all duration-200">
+                        REPLAY / NOUVELLE PARTIE
+                    </button>
+                </div>
+            `;
+            overlay.classList.remove('hidden');
+        }
+
         function gameOver() {
             isGameActive = false;
             if (document.exitPointerLock) document.exitPointerLock();
@@ -1126,13 +1194,13 @@
             overlay.innerHTML = `
                 <div class="max-w-md w-full bg-slate-900/90 p-8 rounded-2xl border border-red-900/50 shadow-2xl text-center">
                     <h1 class="text-3xl font-black text-red-500 tracking-wider mb-2 uppercase">ÉLIMINÉ !</h1>
-                    <p class="text-gray-400 text-sm mb-6">Vous avez encaissé 5 touches d'airsoft.</p>
+                    <p class="text-gray-400 text-sm mb-6">Les animaux vous ont terrassé.</p>
                     <div class="bg-slate-800/60 p-4 rounded-xl border border-slate-700 text-center mb-6">
-                        <div class="text-xs text-gray-400 uppercase">Score d'Éliminations</div>
-                        <div class="text-4xl font-black text-amber-400">${killCount}</div>
+                        <div class="text-xs text-gray-400 uppercase">Animaux Vaincus</div>
+                        <div class="text-4xl font-black text-amber-400">${killCount} / 10</div>
                     </div>
                     <button onclick="resetGame()" class="w-full py-4 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-lg transition-all duration-200">
-                        REPLAY / RESPRAWN
+                        RÉESSAYER
                     </button>
                 </div>
             `;
@@ -1142,15 +1210,14 @@
         function resetGame() {
             playerHits = 0;
             killCount = 0;
-            player.position.set(0, 1.6, 20);
+            player.position.set(0, 1.6, 25);
 
-            document.getElementById('kill-count').innerText = '0';
             const dots = document.getElementById('health-dots').children;
             for (let dot of dots) {
                 dot.className = 'w-6 h-6 rounded-md bg-emerald-500 border border-emerald-400 transition-all duration-300';
             }
 
-            spawnBots();
+            spawnBeasts();
 
             if (!isMobile) {
                 document.body.requestPointerLock();
@@ -1177,7 +1244,7 @@
 
         window.onload = function() {
             initScene();
-            spawnBots();
+            spawnBeasts();
             setupInputs();
             animate();
 
@@ -1186,3 +1253,5 @@
     </script>
 </body>
 </html>
+Airsoft_Bodycam_Game.html
+Affichage de Airsoft_Bodycam_Game.html en cours... 
