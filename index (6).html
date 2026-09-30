@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#1a1d33">
+<title>Arène</title>
+<style>
+:root{--nuit:#1a1d33;--carte:#262a4a;--texte:#f2f0ff;--gris:#9a9cc4;--on:#ffc247;--off:#4a4e78}
+*{box-sizing:border-box}
+body{margin:0;background:var(--nuit);color:var(--texte);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden}
+main{max-width:460px;margin:0 auto;padding:24px 20px}
+h1{font-size:28px;margin:0 0 4px}
+p{color:var(--gris);margin:0 0 20px;line-height:1.4}
+a{color:var(--on)}
+input{width:100%;padding:14px;border-radius:12px;border:2px solid var(--off);background:var(--carte);color:var(--texte);font-size:17px;margin-bottom:12px}
+input:focus{outline:none;border-color:var(--on)}
+button{font:inherit;cursor:pointer;border:0;border-radius:14px;padding:14px 18px;font-weight:700;font-size:17px;color:var(--nuit);background:var(--on);width:100%}
+button.gris{background:var(--carte);color:var(--texte)}
+.msg{color:var(--on);min-height:22px;margin:10px 0}
+.ou{text-align:center;color:var(--gris);margin:16px 0}
+canvas{position:fixed;inset:0;width:100%;height:100%;touch-action:none;display:block}
+.cache{display:none}
+</style>
+</head>
+<body>
+<div id="menu"><main>
+  <h1>Arène</h1>
+  <p>Tire sur les autres, esquive et grimpe au classement. 20 joueurs maximum.</p>
+  <p>Ordi : ZQSD ou WASD pour bouger, souris pour viser et cliquer pour tirer. Téléphone : stick gauche pour bouger, stick droit pour viser et tirer.</p>
+  <input id="pseudo" placeholder="Ton pseudo" maxlength="15" autocomplete="off">
+  <button id="creer">Créer une partie</button>
+  <div class="ou">ou</div>
+  <input id="code" placeholder="Code de la partie" maxlength="6" autocomplete="off">
+  <button id="rejoindre" class="gris">Rejoindre</button>
+  <div class="msg" id="msg"></div>
+</main></div>
+<canvas id="c" class="cache"></canvas>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const W = 1200, H = 1200, R = 16, MAXJ = 20, PREF = 'squadarene-';
+const cv = $('c'), x = cv.getContext('2d');
+let peer, hote = null, estHote = false, code = '', myId = '', nom = '', dpr = 1, n = 0;
+let conns = {}, P = {}, B = [], noms = {}, disp = {}, snap = { b: [], t: 0 };
+let kx = 0, ky = 0, mx = 0, my = 0, mf = 0, tactile = false;
+const keys = {}, st = { l: null, r: null };
+
+try { nom = JSON.parse(localStorage.getItem('sg') || '{}').nom || ''; } catch (e) {}
+$('pseudo').value = nom;
+const msg = t => { $('msg').textContent = t || ''; };
+
+function pseudo() {
+  nom = $('pseudo').value.trim().slice(0, 15);
+  if (!nom) { msg('Écris ton pseudo.'); return false; }
+  try { localStorage.setItem('sg', JSON.stringify({ nom })); } catch (e) {}
+  return true;
+}
+
+/* ---------- Commandes ---------- */
+function touche(e, v) {
+  keys[e.key.toLowerCase()] = v;
+  kx = (keys.d || keys.arrowright ? 1 : 0) - (keys.a || keys.q || keys.arrowleft ? 1 : 0);
+  ky = (keys.s || keys.arrowdown ? 1 : 0) - (keys.w || keys.z || keys.arrowup ? 1 : 0);
+}
+addEventListener('keydown', e => touche(e, true));
+addEventListener('keyup', e => touche(e, false));
+addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
+cv.addEventListener('mousedown', () => { mf = 1; });
+addEventListener('mouseup', () => { mf = 0; });
+cv.addEventListener('contextmenu', e => e.preventDefault());
+cv.addEventListener('touchstart', e => {
+  e.preventDefault(); tactile = true;
+  for (const t of e.changedTouches) {
+    const s = t.clientX < innerWidth / 2 ? 'l' : 'r';
+    if (!st[s]) st[s] = { id: t.identifier, ox: t.clientX, oy: t.clientY, x: t.clientX, y: t.clientY };
+  }
+}, { passive: false });
+cv.addEventListener('touchmove', e => {
+  e.preventDefault();
+  for (const t of e.changedTouches) for (const s in st)
+    if (st[s] && st[s].id === t.identifier) { st[s].x = t.clientX; st[s].y = t.clientY; }
+}, { passive: false });
+const finTouch = e => {
+  for (const t of e.changedTouches) for (const s in st)
+    if (st[s] && st[s].id === t.identifier) st[s] = null;
+};
+cv.addEventListener('touchend', finTouch);
+cv.addEventListener('touchcancel', finTouch);
+
+function lireInput() {
+  let dx = kx, dy = ky, ax = mx - innerWidth / 2, ay = my - innerHeight / 2, f = mf;
+  if (tactile) { ax = 0; ay = 0; f = 0; }
+  if (st.l) { dx = (st.l.x - st.l.ox) / 50; dy = (st.l.y - st.l.oy) / 50; }
+  if (st.r) { ax = st.r.x - st.r.ox; ay = st.r.y - st.r.oy; f = Math.hypot(ax, ay) > 12 ? 1 : 0; }
+  const l = Math.hypot(dx, dy);
+  if (l > 1) { dx /= l; dy /= l; }
+  return { dx, dy, ax, ay, f };
+}
+
+/* ---------- Serveur (le créateur de la partie) ---------- */
+function nouveau(id, nomJ) {
+  const p = { id, nom: nomJ || 'Joueur', x: 0, y: 0, a: 0, hp: 100, k: 0, d: 0, mort: 0, cd: 0, in: { dx: 0, dy: 0, ax: 0, ay: 0, f: 0 } };
+  renaitre(p);
+  return p;
+}
+function renaitre(p) {
+  p.x = 100 + Math.random() * (W - 200);
+  p.y = 100 + Math.random() * (H - 200);
+  p.hp = 100; p.mort = 0;
+}
+function diffNoms() {
+  noms = {};
+  for (const id in P) noms[id] = P[id].nom;
+  for (const id in conns) if (conns[id].open) conns[id].send({ t: 'n', n: noms });
+}
+
+function tick() {
+  const dt = 0.033;
+  if (P.hote) P.hote.in = lireInput();
+  for (const id in P) {
+    const p = P[id];
+    if (p.mort > 0) { p.mort -= dt; if (p.mort <= 0) renaitre(p); continue; }
+    const i = p.in;
+    p.x = Math.max(R, Math.min(W - R, p.x + i.dx * 220 * dt));
+    p.y = Math.max(R, Math.min(H - R, p.y + i.dy * 220 * dt));
+    if (i.ax || i.ay) p.a = Math.atan2(i.ay, i.ax);
+    p.cd -= dt;
+    if (i.f && p.cd <= 0) {
+      p.cd = 0.25;
+      const co = Math.cos(p.a), si = Math.sin(p.a);
+      B.push({ x: p.x + co * R, y: p.y + si * R, vx: co * 650, vy: si * 650, a: p.a, o: id, t: 1 });
+    }
+  }
+  for (let i = B.length - 1; i >= 0; i--) {
+    const b = B[i];
+    b.x += b.vx * dt; b.y += b.vy * dt; b.t -= dt;
+    let fin = b.t <= 0 || b.x < 0 || b.x > W || b.y < 0 || b.y > H;
+    if (!fin) for (const id in P) {
+      const p = P[id];
+      if (id === b.o || p.mort > 0) continue;
+      if (Math.hypot(p.x - b.x, p.y - b.y) < R + 4) {
+        p.hp -= 25; fin = true;
+        if (p.hp <= 0) { p.mort = 2; p.d++; if (P[b.o]) P[b.o].k++; }
+        break;
+      }
+    }
+    if (fin) B.splice(i, 1);
+  }
+  if (++n % 2 === 0) {
+    const s = {
+      t: 's',
+      p: Object.values(P).map(p => [p.id, Math.round(p.x), Math.round(p.y), Math.round(p.a * 100) / 100, p.hp, p.k, p.d, p.mort > 0 ? 1 : 0]),
+      b: B.map(b => [Math.round(b.x), Math.round(b.y), Math.round(b.a * 100) / 100])
+    };
+    for (const id in conns) if (conns[id].open) conns[id].send(s);
+    recevoir(s);
+  }
+}
+
+function creer() {
+  if (!pseudo()) return;
+  const al = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  code = Array.from({ length: 6 }, () => al[Math.floor(Math.random() * al.length)]).join('');
+  msg('Création...');
+  peer = new Peer(PREF + code);
+  peer.on('open', () => {
+    estHote = true; myId = 'hote';
+    P.hote = nouveau('hote', nom);
+    diffNoms(); lancer(); setInterval(tick, 33);
+  });
+  peer.on('error', e => {
+    if (e.type === 'unavailable-id') { peer.destroy(); creer(); }
+    else msg('Problème de connexion. Réessaie.');
+  });
+  peer.on('connection', c => {
+    c.on('open', () => {
+      if (Object.keys(P).length >= MAXJ) { c.send({ t: 'plein' }); setTimeout(() => c.close(), 500); return; }
+      conns[c.peer] = c;
+    });
+    c.on('data', d => {
+      if (!conns[c.peer]) return;
+      if (d.t === 'j' && !P[c.peer]) { P[c.peer] = nouveau(c.peer, String(d.nom || 'Joueur').slice(0, 15)); diffNoms(); }
+      else if (d.t === 'i' && P[c.peer]) {
+        const v = q => Math.max(-1, Math.min(1, +q || 0));
+        P[c.peer].in = { dx: v(d.dx), dy: v(d.dy), ax: +d.ax || 0, ay: +d.ay || 0, f: d.f ? 1 : 0 };
+      }
+    });
+    c.on('close', () => { delete P[c.peer]; delete conns[c.peer]; diffNoms(); });
+  });
+}
+
+/* ---------- Joueur qui rejoint ---------- */
+function rejoindre() {
+  if (!pseudo()) return;
+  code = $('code').value.trim().toUpperCase();
+  if (code.length !== 6) { msg('Le code fait 6 caractères.'); return; }
+  msg('Connexion...');
+  peer = new Peer();
+  peer.on('open', id => {
+    myId = id;
+    hote = peer.connect(PREF + code, { reliable: true });
+    const delai = setTimeout(() => { peer.destroy(); msg('Partie introuvable. Le créateur doit garder la page ouverte.'); }, 8000);
+    hote.on('open', () => {
+      clearTimeout(delai);
+      hote.send({ t: 'j', nom });
+      lancer();
+      setInterval(() => { if (hote.open) hote.send({ t: 'i', ...lireInput() }); }, 50);
+    });
+    hote.on('data', d => {
+      if (d.t === 's') recevoir(d);
+      else if (d.t === 'n') noms = d.n;
+      else if (d.t === 'plein') { alert('Partie pleine (20 joueurs maximum).'); location.reload(); }
+    });
+    hote.on('close', () => { alert('La partie est terminée.'); location.reload(); });
+  });
+  peer.on('error', () => msg('Problème de connexion. Réessaie.'));
+}
+
+/* ---------- Affichage ---------- */
+function recevoir(s) {
+  snap = { b: s.b, t: performance.now() };
+  const nd = {};
+  for (const a of s.p) {
+    const o = disp[a[0]];
+    nd[a[0]] = { x: o && !o.dead ? o.x : a[1], y: o && !o.dead ? o.y : a[2], tx: a[1], ty: a[2], a: a[3], hp: a[4], k: a[5], d: a[6], dead: a[7] };
+  }
+  disp = nd;
+}
+
+function couleur(id) {
+  if (id === myId) return '#ffc247';
+  let h = 0;
+  for (const ch of id) h += ch.charCodeAt(0);
+  return 'hsl(' + (h * 37 % 360) + ' 70% 62%)';
+}
+
+function resize() {
+  dpr = Math.min(devicePixelRatio || 1, 2);
+  cv.width = innerWidth * dpr; cv.height = innerHeight * dpr;
+}
+addEventListener('resize', resize);
+
+function lancer() {
+  $('menu').classList.add('cache');
+  cv.classList.remove('cache');
+  resize(); dessiner();
+}
+
+function dessiner() {
+  requestAnimationFrame(dessiner);
+  const w = innerWidth, h = innerHeight;
+  x.setTransform(dpr, 0, 0, dpr, 0, 0);
+  x.fillStyle = '#12142a'; x.fillRect(0, 0, w, h);
+  for (const id in disp) { const d = disp[id]; d.x += (d.tx - d.x) * 0.35; d.y += (d.ty - d.y) * 0.35; }
+  const me = disp[myId], cx = me ? me.x : W / 2, cy = me ? me.y : H / 2;
+
+  x.save();
+  x.translate(w / 2 - cx, h / 2 - cy);
+  x.fillStyle = '#20244a'; x.fillRect(0, 0, W, H);
+  x.strokeStyle = '#2d3261'; x.lineWidth = 1; x.beginPath();
+  for (let i = 0; i <= W; i += 100) { x.moveTo(i, 0); x.lineTo(i, H); x.moveTo(0, i); x.lineTo(W, i); }
+  x.stroke();
+  x.strokeStyle = '#ffc247'; x.lineWidth = 4; x.strokeRect(0, 0, W, H);
+
+  const dt = (performance.now() - snap.t) / 1000;
+  x.fillStyle = '#fff';
+  for (const b of snap.b) {
+    x.beginPath();
+    x.arc(b[0] + Math.cos(b[2]) * 650 * dt, b[1] + Math.sin(b[2]) * 650 * dt, 4, 0, 7);
+    x.fill();
+  }
+  x.textAlign = 'center'; x.font = '13px system-ui';
+  for (const id in disp) {
+    const d = disp[id];
+    if (d.dead) continue;
+    x.strokeStyle = couleur(id); x.lineWidth = 5; x.beginPath();
+    x.moveTo(d.x, d.y); x.lineTo(d.x + Math.cos(d.a) * (R + 9), d.y + Math.sin(d.a) * (R + 9)); x.stroke();
+    x.fillStyle = couleur(id); x.beginPath(); x.arc(d.x, d.y, R, 0, 7); x.fill();
+    x.fillStyle = '#12142a'; x.fillRect(d.x - 18, d.y - R - 14, 36, 5);
+    x.fillStyle = '#7CE0A8'; x.fillRect(d.x - 18, d.y - R - 14, 36 * Math.max(0, d.hp) / 100, 5);
+    x.fillStyle = '#f2f0ff'; x.fillText(noms[id] || '', d.x, d.y - R - 20);
+  }
+  x.restore();
+
+  x.textAlign = 'left'; x.fillStyle = '#f2f0ff'; x.font = 'bold 15px system-ui';
+  x.fillText('Code : ' + code + ' (' + Object.keys(disp).length + ' joueurs)', 12, 24);
+  x.textAlign = 'right';
+  x.fillText('Classement', w - 12, 24);
+  x.font = '14px system-ui';
+  Object.entries(disp).sort((a, b) => b[1].k - a[1].k).slice(0, 5)
+    .forEach(([id, d], i) => x.fillText((noms[id] || '?') + '  ' + d.k + ' / ' + d.d, w - 12, 46 + i * 20));
+  if (me && me.dead) {
+    x.textAlign = 'center'; x.font = 'bold 22px system-ui';
+    x.fillText('Éliminé, retour dans 2 secondes', w / 2, h / 2);
+  }
+  for (const s of ['l', 'r']) if (st[s]) {
+    const t = st[s], dx = t.x - t.ox, dy = t.y - t.oy, l = Math.hypot(dx, dy), m = l > 50 ? 50 / l : 1;
+    x.strokeStyle = 'rgba(242,240,255,.5)'; x.lineWidth = 3;
+    x.beginPath(); x.arc(t.ox, t.oy, 50, 0, 7); x.stroke();
+    x.fillStyle = 'rgba(255,194,71,.7)';
+    x.beginPath(); x.arc(t.ox + dx * m, t.oy + dy * m, 22, 0, 7); x.fill();
+  }
+}
+
+$('creer').onclick = creer;
+$('rejoindre').onclick = rejoindre;
+</script>
+</body>
+</html>
