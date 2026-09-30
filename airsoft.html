@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#1a1d33">
+<title>Airsoft Bodycam</title>
+<style>
+:root{--nuit:#1a1d33;--carte:#262a4a;--texte:#f2f0ff;--gris:#9a9cc4;--on:#ffc247;--off:#4a4e78}
+*{box-sizing:border-box}
+body{margin:0;background:var(--nuit);color:var(--texte);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden}
+main{max-width:460px;margin:0 auto;padding:24px 20px}
+h1{font-size:28px;margin:0 0 4px}
+p{color:var(--gris);margin:0 0 20px;line-height:1.4}
+input{width:100%;padding:14px;border-radius:12px;border:2px solid var(--off);background:var(--carte);color:var(--texte);font-size:17px;margin-bottom:12px}
+input:focus{outline:none;border-color:var(--on)}
+button{font:inherit;cursor:pointer;border:0;border-radius:14px;padding:14px 18px;font-weight:700;font-size:17px;color:var(--nuit);background:var(--on);width:100%}
+button.gris{background:var(--carte);color:var(--texte)}
+.msg{color:var(--on);min-height:22px;margin:10px 0}
+.ou{text-align:center;color:var(--gris);margin:16px 0}
+#ui{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:2}
+.cache{display:none}
+</style>
+</head>
+<body>
+<div id="menu"><main>
+  <h1>Airsoft Bodycam</h1>
+  <p>Tir à la première personne sur un terrain d'airsoft. Chacun pour soi, 20 joueurs maximum, 5 touches et tu es éliminé.</p>
+  <p>Ordi : ZQSD ou WASD pour bouger, souris pour viser, clic pour tirer. Téléphone : stick gauche pour bouger, glisse à droite pour viser, bouton Tirer en bas à droite.</p>
+  <input id="pseudo" placeholder="Ton pseudo" maxlength="15" autocomplete="off">
+  <button id="creer">Créer une partie</button>
+  <div class="ou">ou</div>
+  <input id="code" placeholder="Code de la partie" maxlength="6" autocomplete="off">
+  <button id="rejoindre" class="gris">Rejoindre</button>
+  <div class="msg" id="msg"></div>
+</main></div>
+<canvas id="ui" class="cache"></canvas>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const LX = 60, LZ = 40, RJ = 0.4, MAXJ = 20, PREF = 'squadairsoft-';
+const ui = $('ui'), u = ui.getContext('2d');
+let peer, hote = null, estHote = false, code = '', myId = '', nom = '', dpr = 1, n = 0, t0 = 0, tPrev = 0;
+let conns = {}, P = {}, tirs = [], noms = {}, disp = {}, objs = {}, tr = [];
+let kx = 0, ky = 0, mf = 0, tactile = false, th = 0, pit = 0, orient = false;
+let vie = 100, rouge = 0, kick = 0, tLocal = 0, tFlash = 0;
+let renderer, scene, camera, cv, gun, flash;
+const keys = {}, st = { l: null, r: null, f: null }, pred = { x: 0, z: 0, a: 0, ok: false };
+
+/* ---------- La carte : terrain d'airsoft ---------- */
+// [centre x, centre z, largeur, profondeur, hauteur, couleur, cylindre?]
+const DEF = [
+  [30, 17, 8, 0.3, 2.6, 0x8b6b4a], [27.75, 23, 3.5, 0.3, 2.6, 0x8b6b4a], [32.25, 23, 3.5, 0.3, 2.6, 0x8b6b4a],
+  [26, 20, 0.3, 6, 2.6, 0x8b6b4a], [34, 18.2, 0.3, 2.4, 2.6, 0x8b6b4a], [34, 21.8, 0.3, 2.4, 2.6, 0x8b6b4a],
+  [15, 10, 6, 2.4, 2.6, 0x3d6b8a], [45, 30, 6, 2.4, 2.6, 0x8a4a3d], [15, 32, 2.4, 6, 2.6, 0x5a7a3d], [45, 8, 2.4, 6, 2.6, 0xc9a13d],
+  [20, 20, 0.3, 5, 2.6, 0x9c7b52], [40, 20, 0.3, 5, 2.6, 0x9c7b52],
+  [22, 14, 1, 1, 1, 0xc0392b, 1], [38, 26, 1, 1, 1, 0xc0392b, 1], [22, 28, 1, 1, 1, 0x2e6fb0, 1], [38, 12, 1, 1, 1, 0x2e6fb0, 1],
+  [30, 8, 1.2, 1.2, 0.9, 0x222222, 1], [30, 32, 1.2, 1.2, 0.9, 0x222222, 1],
+  [10, 20, 1.5, 1.5, 1.2, 0xb08a56], [50, 20, 1.5, 1.5, 1.2, 0xb08a56],
+  [8, 12, 3, 0.4, 1.2, 0xa07848], [52, 28, 3, 0.4, 1.2, 0xa07848], [8, 28, 3, 0.4, 1.2, 0xa07848], [52, 12, 3, 0.4, 1.2, 0xa07848]
+];
+const OBS = DEF.map(([cx, cz, w, d, h, c, y]) => ({ cx, cz, w, d, h, c, y, x0: cx - w / 2, x1: cx + w / 2, z0: cz - d / 2, z1: cz + d / 2 }));
+const SPAWNS = [[4, 8], [4, 20], [4, 32], [6, 14], [6, 26], [56, 8], [56, 20], [56, 32], [54, 14], [54, 26]];
+
+try { nom = JSON.parse(localStorage.getItem('sg') || '{}').nom || ''; } catch (e) {}
+$('pseudo').value = nom;
+const msg = t => { $('msg').textContent = t || ''; };
+function pseudo() {
+  nom = $('pseudo').value.trim().slice(0, 15);
+  if (!nom) { msg('Écris ton pseudo.'); return false; }
+  try { localStorage.setItem('sg', JSON.stringify({ nom })); } catch (e) {}
+  return true;
+}
+
+/* ---------- Mouvement et collisions (partagés) ---------- */
+function bouger(p, f, s, dt) {
+  const c = Math.cos(p.a), si = Math.sin(p.a);
+  let vx = c * f - si * s, vz = si * f + c * s;
+  const l = Math.hypot(vx, vz);
+  if (l > 1) { vx /= l; vz /= l; }
+  p.x = Math.max(RJ, Math.min(LX - RJ, p.x + vx * 5 * dt));
+  p.z = Math.max(RJ, Math.min(LZ - RJ, p.z + vz * 5 * dt));
+  for (const o of OBS) {
+    const nx = Math.max(o.x0, Math.min(p.x, o.x1)), nz = Math.max(o.z0, Math.min(p.z, o.z1));
+    const dx = p.x - nx, dz = p.z - nz, d = Math.hypot(dx, dz);
+    if (d < RJ) {
+      if (d > 0) { p.x = nx + dx / d * RJ; p.z = nz + dz / d * RJ; }
+      else {
+        const a = p.x - o.x0, b = o.x1 - p.x, c2 = p.z - o.z0, e = o.z1 - p.z, m = Math.min(a, b, c2, e);
+        if (m === a) p.x = o.x0 - RJ; else if (m === b) p.x = o.x1 + RJ; else if (m === c2) p.z = o.z0 - RJ; else p.z = o.z1 + RJ;
+      }
+    }
+  }
+}
+
+/* ---------- Commandes ---------- */
+function touche(e, v) {
+  keys[e.key.toLowerCase()] = v;
+  kx = (keys.d || keys.arrowright ? 1 : 0) - (keys.a || keys.q || keys.arrowleft ? 1 : 0);
+  ky = (keys.s || keys.arrowdown ? 1 : 0) - (keys.w || keys.z || keys.arrowup ? 1 : 0);
+}
+addEventListener('keydown', e => touche(e, true));
+addEventListener('keyup', e => touche(e, false));
+addEventListener('mouseup', () => { mf = 0; });
+addEventListener('mousemove', e => {
+  if (cv && document.pointerLockElement === cv) {
+    th -= e.movementX * 0.0025;
+    pit = Math.max(-1.3, Math.min(1.3, pit - e.movementY * 0.0025));
+  }
+});
+const btnF = () => ({ x: innerWidth - 80, y: innerHeight - 100, r: 50 });
+
+function brancher() {
+  cv.addEventListener('mousedown', () => {
+    if (document.pointerLockElement !== cv) { if (cv.requestPointerLock) cv.requestPointerLock(); } else mf = 1;
+  });
+  cv.addEventListener('contextmenu', e => e.preventDefault());
+  cv.addEventListener('touchstart', e => {
+    e.preventDefault(); tactile = true;
+    for (const t of e.changedTouches) {
+      const b = btnF();
+      if (Math.hypot(t.clientX - b.x, t.clientY - b.y) < b.r + 10) { if (!st.f) st.f = { id: t.identifier }; }
+      else if (t.clientX < innerWidth / 2) { if (!st.l) st.l = { id: t.identifier, ox: t.clientX, oy: t.clientY, x: t.clientX, y: t.clientY }; }
+      else if (!st.r) st.r = { id: t.identifier, x: t.clientX, y: t.clientY };
+    }
+  }, { passive: false });
+  cv.addEventListener('touchmove', e => {
+    e.preventDefault();
+    for (const t of e.changedTouches) {
+      if (st.l && st.l.id === t.identifier) { st.l.x = t.clientX; st.l.y = t.clientY; }
+      if (st.r && st.r.id === t.identifier) {
+        th -= (t.clientX - st.r.x) * 0.006;
+        pit = Math.max(-1.3, Math.min(1.3, pit - (t.clientY - st.r.y) * 0.006));
+        st.r.x = t.clientX; st.r.y = t.clientY;
+      }
+    }
+  }, { passive: false });
+  const fin = e => { for (const t of e.changedTouches) for (const s in st) if (st[s] && st[s].id === t.identifier) st[s] = null; };
+  cv.addEventListener('touchend', fin);
+  cv.addEventListener('touchcancel', fin);
+}
+
+function lireInput() {
+  let f = -ky, s = kx, fire = mf ? 1 : 0;
+  if (st.l) { s = (st.l.x - st.l.ox) / 50; f = -(st.l.y - st.l.oy) / 50; }
+  if (st.f) fire = 1;
+  const l = Math.hypot(f, s);
+  if (l > 1) { f /= l; s /= l; }
+  return { f, s, a: -th - Math.PI / 2, fire };
+}
+
+/* ---------- Serveur (le créateur de la partie) ---------- */
+function nouveau(id, nomJ) {
+  const p = { id, nom: nomJ || 'Joueur', x: 0, z: 0, a: 0, hp: 100, k: 0, d: 0, mort: 0, cd: 0, in: { f: 0, s: 0, fire: 0 } };
+  renaitre(p);
+  return p;
+}
+function renaitre(p) {
+  const s = SPAWNS[Math.floor(Math.random() * SPAWNS.length)];
+  p.x = s[0]; p.z = s[1]; p.hp = 100; p.mort = 0;
+}
+function diffNoms() {
+  noms = {};
+  for (const id in P) noms[id] = P[id].nom;
+  for (const id in conns) if (conns[id].open) conns[id].send({ t: 'n', n: noms });
+}
+
+function rayBox(ox, oz, dx, dz, o) {
+  let a = 0, b = 1e9;
+  for (const [p, d, lo, hi] of [[ox, dx, o.x0, o.x1], [oz, dz, o.z0, o.z1]]) {
+    if (Math.abs(d) < 1e-9) { if (p < lo || p > hi) return 1e9; }
+    else {
+      let t1 = (lo - p) / d, t2 = (hi - p) / d;
+      if (t1 > t2) [t1, t2] = [t2, t1];
+      a = Math.max(a, t1); b = Math.min(b, t2);
+      if (a > b) return 1e9;
+    }
+  }
+  return a;
+}
+function rayCercle(ox, oz, dx, dz, cx, cz, r) {
+  const fx = cx - ox, fz = cz - oz, t = fx * dx + fz * dz;
+  if (t < 0) return 1e9;
+  const d2 = fx * fx + fz * fz - t * t;
+  return d2 > r * r ? 1e9 : t - Math.sqrt(r * r - d2);
+}
+function tirer(p, id) {
+  const a = p.a + (Math.random() - 0.5) * 0.02, dx = Math.cos(a), dz = Math.sin(a);
+  let best = 80, cible = null;
+  for (const o of OBS) if (o.h >= 1.4) { const t = rayBox(p.x, p.z, dx, dz, o); if (t < best) best = t; }
+  for (const q in P) {
+    if (q === id || P[q].mort > 0) continue;
+    const t = rayCercle(p.x, p.z, dx, dz, P[q].x, P[q].z, 0.45);
+    if (t < best) { best = t; cible = P[q]; }
+  }
+  if (cible) { cible.hp -= 20; if (cible.hp <= 0) { cible.mort = 3; cible.d++; p.k++; } }
+  const r = v => Math.round(v * 100) / 100;
+  tirs.push([r(p.x + dx * 0.5), r(p.z + dz * 0.5), r(p.x + dx * best), r(p.z + dz * best)]);
+}
+
+function tick() {
+  const dt = 0.033;
+  if (P.hote) { const i = lireInput(); P.hote.in = { f: i.f, s: i.s, fire: i.fire }; P.hote.a = i.a; }
+  for (const id in P) {
+    const p = P[id];
+    if (p.mort > 0) { p.mort -= dt; if (p.mort <= 0) renaitre(p); continue; }
+    bouger(p, p.in.f, p.in.s, dt);
+    p.cd -= dt;
+    if (p.in.fire && p.cd <= 0) { p.cd = 0.12; tirer(p, id); }
+  }
+  if (++n % 2 === 0) {
+    const r = v => Math.round(v * 100) / 100;
+    const s = { t: 's', h: tirs.slice(0, 12), p: Object.values(P).map(p => [p.id, r(p.x), r(p.z), r(p.a), p.hp, p.k, p.d, p.mort > 0 ? 1 : 0]) };
+    tirs = [];
+    for (const id in conns) if (conns[id].open) conns[id].send(s);
+    recevoir(s);
+  }
+}
+
+function creer() {
+  if (!pseudo()) return;
+  const al = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  code = Array.from({ length: 6 }, () => al[Math.floor(Math.random() * al.length)]).join('');
+  msg('Création...');
+  peer = new Peer(PREF + code);
+  peer.on('open', () => {
+    estHote = true; myId = 'hote';
+    P.hote = nouveau('hote', nom);
+    diffNoms(); lancer(); setInterval(tick, 33);
+  });
+  peer.on('error', e => {
+    if (e.type === 'unavailable-id') { peer.destroy(); creer(); }
+    else msg('Problème de connexion. Réessaie.');
+  });
+  peer.on('connection', c => {
+    c.on('open', () => {
+      if (Object.keys(P).length >= MAXJ) { c.send({ t: 'plein' }); setTimeout(() => c.close(), 500); return; }
+      conns[c.peer] = c;
+    });
+    c.on('data', d => {
+      if (!conns[c.peer]) return;
+      if (d.t === 'j' && !P[c.peer]) { P[c.peer] = nouveau(c.peer, String(d.nom || 'Joueur').slice(0, 15)); diffNoms(); }
+      else if (d.t === 'i' && P[c.peer]) {
+        const v = q => Math.max(-1, Math.min(1, +q || 0)), p = P[c.peer];
+        p.in = { f: v(d.f), s: v(d.s), fire: d.fire ? 1 : 0 };
+        if (isFinite(+d.a)) p.a = +d.a;
+      }
+    });
+    c.on('close', () => { delete P[c.peer]; delete conns[c.peer]; diffNoms(); });
+  });
+}
+
+/* ---------- Joueur qui rejoint ---------- */
+function rejoindre() {
+  if (!pseudo()) return;
+  code = $('code').value.trim().toUpperCase();
+  if (code.length !== 6) { msg('Le code fait 6 caractères.'); return; }
+  msg('Connexion...');
+  peer = new Peer();
+  peer.on('open', id => {
+    myId = id;
+    hote = peer.connect(PREF + code, { reliable: true });
+    const delai = setTimeout(() => { peer.destroy(); msg('Partie introuvable. Le créateur doit garder la page ouverte.'); }, 8000);
+    hote.on('open', () => {
+      clearTimeout(delai);
+      hote.send({ t: 'j', nom });
+      lancer();
+      setInterval(() => { if (hote.open) hote.send({ t: 'i', ...lireInput() }); }, 50);
+    });
+    hote.on('data', d => {
+      if (d.t === 's') recevoir(d);
+      else if (d.t === 'n') noms = d.n;
+      else if (d.t === 'plein') { alert('Partie pleine (20 joueurs maximum).'); location.reload(); }
+    });
+    hote.on('close', () => { alert('La partie est terminée.'); location.reload(); });
+  });
+  peer.on('error', () => msg('Problème de connexion. Réessaie.'));
+}
+
+/* ---------- Affichage 3D ---------- */
+function recevoir(s) {
+  const nd = {};
+  for (const a of s.p) {
+    const o = disp[a[0]], ok = o && !o.dead;
+    nd[a[0]] = { x: ok ? o.x : a[1], z: ok ? o.z : a[2], tx: a[1], tz: a[2], a: a[3], ra: o ? o.ra : a[3], hp: a[4], k: a[5], d: a[6], dead: a[7] };
+  }
+  disp = nd;
+  const m = nd[myId];
+  if (m) { if (m.hp < vie) rouge = 1; vie = m.hp; }
+  if (scene && s.h) s.h.forEach(tracer);
+}
+
+function tracer(a) {
+  let m = tr.find(t => !t.line.visible);
+  if (!m) {
+    if (tr.length >= 24) return;
+    const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
+    m = { line: new THREE.Line(g, new THREE.LineBasicMaterial({ color: 0xffe08a })), exp: 0 };
+    m.line.frustumCulled = false; scene.add(m.line); tr.push(m);
+  }
+  const p = m.line.geometry.attributes.position;
+  p.setXYZ(0, a[0], 1.25, a[1]); p.setXYZ(1, a[2], 1.25, a[3]); p.needsUpdate = true;
+  m.line.visible = true; m.exp = performance.now() + 90;
+}
+
+function couleur(id) {
+  let h = 0;
+  for (const ch of id) h += ch.charCodeAt(0);
+  return 'hsl(' + (h * 37 % 360) + ',55%,45%)';
+}
+
+function creerJoueur(id) {
+  const g = new THREE.Group(), corps = new THREE.Group();
+  const gilet = new THREE.MeshLambertMaterial({ color: new THREE.Color(couleur(id)) });
+  const b = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 1.4, 12), gilet); b.position.y = 0.7;
+  const t = new THREE.Mesh(new THREE.SphereGeometry(0.18, 12, 10), new THREE.MeshLambertMaterial({ color: 0x222222 })); t.position.y = 1.6;
+  const f = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.6), new THREE.MeshLambertMaterial({ color: 0x111111 })); f.position.set(0.2, 1.2, -0.4);
+  const o = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.05), new THREE.MeshBasicMaterial({ color: 0xff7a00 })); o.position.set(0.2, 1.2, -0.72);
+  corps.add(b, t, f, o); g.add(corps);
+  const hp = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0x7CE0A8 }));
+  hp.center.set(0, 0.5); hp.position.set(-0.45, 1.95, 0); hp.scale.set(0.9, 0.09, 1);
+  const lab = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true }));
+  lab.position.y = 2.25; lab.scale.set(1.6, 0.4, 1);
+  g.add(hp, lab); scene.add(g);
+  return { g, corps, hp, lab, nom: null };
+}
+function majLabel(o) {
+  const cn = document.createElement('canvas'); cn.width = 256; cn.height = 64;
+  const k = cn.getContext('2d');
+  k.font = 'bold 30px system-ui'; k.textAlign = 'center'; k.fillStyle = '#ffffff'; k.fillText(o.nom, 128, 42);
+  if (o.lab.material.map) o.lab.material.map.dispose();
+  o.lab.material.map = new THREE.CanvasTexture(cn); o.lab.material.needsUpdate = true;
+}
+
+function resize() {
+  dpr = Math.min(devicePixelRatio || 1, 2);
+  renderer.setPixelRatio(dpr); renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  ui.width = innerWidth * dpr; ui.height = innerHeight * dpr;
+}
+
+function lancer() {
+  $('menu').classList.add('cache');
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  cv = renderer.domElement;
+  cv.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;touch-action:none;display:block';
+  document.body.appendChild(cv);
+  ui.classList.remove('cache');
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x9ec9e8);
+  scene.fog = new THREE.Fog(0x9ec9e8, 40, 140);
+  camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.05, 300);
+  camera.rotation.order = 'YXZ'; scene.add(camera);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.65));
+  const soleil = new THREE.DirectionalLight(0xffffff, 0.8); soleil.position.set(30, 60, 20); scene.add(soleil);
+  const herbe = new THREE.Mesh(new THREE.PlaneGeometry(LX * 3, LZ * 3), new THREE.MeshLambertMaterial({ color: 0x55703d }));
+  herbe.rotation.x = -Math.PI / 2; herbe.position.set(LX / 2, 0, LZ / 2); scene.add(herbe);
+  const terrain = new THREE.Mesh(new THREE.PlaneGeometry(LX, LZ), new THREE.MeshLambertMaterial({ color: 0x8a7a55 }));
+  terrain.rotation.x = -Math.PI / 2; terrain.position.set(LX / 2, 0.01, LZ / 2); scene.add(terrain);
+  OBS.forEach(o => {
+    const geo = o.y ? new THREE.CylinderGeometry(o.w / 2, o.w / 2, o.h, 14) : new THREE.BoxGeometry(o.w, o.h, o.d);
+    const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: o.c })); m.position.set(o.cx, o.h / 2, o.cz); scene.add(m);
+  });
+  const filet = new THREE.MeshLambertMaterial({ color: 0xdddddd, transparent: true, opacity: 0.3 });
+  [[LX, 0.1, LX / 2, 0], [LX, 0.1, LX / 2, LZ], [0.1, LZ, 0, LZ / 2], [0.1, LZ, LX, LZ / 2]].forEach(([w, d, x, z]) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, 3, d), filet); m.position.set(x, 1.5, z); scene.add(m);
+  });
+  gun = new THREE.Group();
+  const corpsArme = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.09, 0.5), new THREE.MeshLambertMaterial({ color: 0x222222 }));
+  const bout = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.05), new THREE.MeshBasicMaterial({ color: 0xff7a00 })); bout.position.z = -0.27;
+  flash = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.08), new THREE.MeshBasicMaterial({ color: 0xffe08a })); flash.position.z = -0.34; flash.visible = false;
+  gun.add(corpsArme, bout, flash); gun.position.set(0.22, -0.2, -0.45); camera.add(gun);
+  brancher(); resize(); addEventListener('resize', resize);
+  t0 = performance.now(); tPrev = t0; dessiner();
+}
+
+function dessiner() {
+  requestAnimationFrame(dessiner);
+  const now = performance.now(), dtf = Math.min(0.05, (now - tPrev) / 1000); tPrev = now;
+  for (const id in disp) {
+    const d = disp[id];
+    d.x += (d.tx - d.x) * 0.35; d.z += (d.tz - d.z) * 0.35;
+    d.ra += Math.atan2(Math.sin(d.a - d.ra), Math.cos(d.a - d.ra)) * 0.35;
+  }
+  for (const id in objs) if (!disp[id]) { scene.remove(objs[id].g); delete objs[id]; }
+  for (const id in disp) {
+    const d = disp[id], o = objs[id] || (objs[id] = creerJoueur(id));
+    o.g.visible = !d.dead && id !== myId;
+    o.g.position.set(d.x, 0, d.z);
+    o.corps.rotation.y = -(d.ra + Math.PI / 2);
+    o.hp.scale.x = Math.max(0.01, 0.9 * d.hp / 100);
+    if (o.nom !== (noms[id] || '')) { o.nom = noms[id] || ''; majLabel(o); }
+  }
+  const inp = lireInput(), me = disp[myId];
+  let cx = LX / 2, cz = LZ / 2, mort = false, connu = false;
+  if (estHote && P.hote) { cx = P.hote.x; cz = P.hote.z; mort = P.hote.mort > 0; connu = true; }
+  else if (me) {
+    connu = true; mort = !!me.dead;
+    if (!pred.ok || mort || Math.hypot(pred.x - me.tx, pred.z - me.tz) > 2) { pred.x = me.tx; pred.z = me.tz; pred.ok = true; }
+    else {
+      pred.a = inp.a; bouger(pred, inp.f, inp.s, dtf);
+      pred.x += (me.tx - pred.x) * 0.1; pred.z += (me.tz - pred.z) * 0.1;
+    }
+    cx = pred.x; cz = pred.z;
+  }
+  if (connu && !orient) { th = -(Math.atan2(LZ / 2 - cz, LX / 2 - cx) + Math.PI / 2); orient = true; }
+  if (inp.fire && !mort && now > tLocal) { tLocal = now + 120; kick = 0.06; tFlash = now + 50; }
+  kick *= 0.8; gun.position.z = -0.45 + kick; flash.visible = now < tFlash;
+  gun.visible = !mort;
+  camera.position.set(cx, mort ? 0.4 : 1.65, cz);
+  camera.rotation.set(pit, th, 0);
+  for (const t of tr) if (t.line.visible && now > t.exp) t.line.visible = false;
+  renderer.render(scene, camera);
+  hud(mort);
+}
+
+function hud(mort) {
+  const w = innerWidth, h = innerHeight;
+  u.setTransform(dpr, 0, 0, dpr, 0, 0); u.clearRect(0, 0, w, h);
+  const g = u.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.35, w / 2, h / 2, Math.max(w, h) * 0.75);
+  g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.6)');
+  u.fillStyle = g; u.fillRect(0, 0, w, h);
+  if (rouge > 0.02) { u.fillStyle = 'rgba(200,0,0,' + rouge * 0.4 + ')'; u.fillRect(0, 0, w, h); rouge *= 0.92; }
+  u.strokeStyle = '#fff'; u.lineWidth = 2; u.beginPath(); u.arc(w / 2, h / 2, 6, 0, 7); u.stroke();
+  const s = Math.floor((performance.now() - t0) / 1000), p2 = v => String(v).padStart(2, '0');
+  u.fillStyle = '#ff3b30'; u.beginPath(); u.arc(22, 22, 6, 0, 7); u.fill();
+  u.fillStyle = '#f2f0ff'; u.textAlign = 'left'; u.font = 'bold 15px system-ui';
+  u.fillText('REC ' + p2(Math.floor(s / 3600)) + ':' + p2(Math.floor(s / 60) % 60) + ':' + p2(s % 60), 36, 27);
+  u.font = '13px system-ui';
+  u.fillText('Code : ' + code + ' (' + Object.keys(disp).length + ' joueurs)', 12, 50);
+  u.textAlign = 'right';
+  u.fillText(new Date().toLocaleString('fr-FR'), w - 12, 24);
+  u.font = 'bold 14px system-ui'; u.fillText('Classement', w - 12, 48);
+  u.font = '14px system-ui';
+  Object.entries(disp).sort((a, b) => b[1].k - a[1].k).slice(0, 5)
+    .forEach(([id, d], i) => u.fillText((noms[id] || '?') + '  ' + d.k + ' / ' + d.d, w - 12, 68 + i * 20));
+  u.textAlign = 'left'; u.font = 'bold 16px system-ui';
+  u.fillText('PV ' + Math.max(0, vie), 12, h - 34);
+  u.fillStyle = 'rgba(242,240,255,.25)'; u.fillRect(12, h - 24, 160, 8);
+  u.fillStyle = '#7CE0A8'; u.fillRect(12, h - 24, 160 * Math.max(0, vie) / 100, 8);
+  u.fillStyle = '#f2f0ff'; u.textAlign = 'center'; u.font = 'bold 20px system-ui';
+  if (mort) u.fillText('Touché ! Retour dans 3 secondes', w / 2, h / 2 - 40);
+  else if (!tactile && document.pointerLockElement !== cv) u.fillText('Clique pour viser (Échap pour libérer la souris)', w / 2, h / 2 - 40);
+  if (tactile) {
+    const b = btnF();
+    u.strokeStyle = 'rgba(255,194,71,.9)'; u.lineWidth = 3; u.beginPath(); u.arc(b.x, b.y, b.r, 0, 7); u.stroke();
+    u.fillStyle = 'rgba(255,194,71,.9)'; u.font = 'bold 16px system-ui'; u.fillText('Tirer', b.x, b.y + 6);
+    if (st.l) {
+      const dx = st.l.x - st.l.ox, dy = st.l.y - st.l.oy, l = Math.hypot(dx, dy), m = l > 50 ? 50 / l : 1;
+      u.strokeStyle = 'rgba(242,240,255,.5)'; u.beginPath(); u.arc(st.l.ox, st.l.oy, 50, 0, 7); u.stroke();
+      u.fillStyle = 'rgba(255,194,71,.7)'; u.beginPath(); u.arc(st.l.ox + dx * m, st.l.oy + dy * m, 22, 0, 7); u.fill();
+    }
+  }
+}
+
+$('creer').onclick = creer;
+$('rejoindre').onclick = rejoindre;
+</script>
+</body>
+</html>
